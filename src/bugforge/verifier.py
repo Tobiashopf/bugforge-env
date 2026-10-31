@@ -15,13 +15,14 @@ Layered defenses, each covering a different way to fake a pass:
 5. **Differential fuzzing** against the original module, so hard-coding the
    answers to the visible tests does not pass.
 6. **Timeout.** An infinite loop scores zero instead of hanging the grader.
+
+With ``runner=DockerRunner()`` the grading run itself also happens inside a
+network-less container (see runner.py).
 """
 from __future__ import annotations
 
 import ast
 import os
-import subprocess
-import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -29,6 +30,7 @@ from pathlib import Path
 
 from . import policy
 from .base import BaseTask
+from .runner import LocalRunner, Result
 
 
 @dataclass
@@ -72,19 +74,14 @@ def _clean_env(fuzz_seed: int) -> dict[str, str]:
     return env
 
 
-def run_pytest(directory: Path, files: list[str], timeout: float,
-               env: dict[str, str]) -> tuple[subprocess.CompletedProcess | None, Path]:
+def run_pytest(directory: Path, files: list[str], timeout: float, env: dict[str, str],
+               runner=None) -> tuple[Result | None, Path]:
+    """Run pytest on `files` (relative to `directory`) with its JUnit report in place."""
+    runner = runner or LocalRunner()
     report = directory / "report.xml"
-    cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider",
-           "-c", str(directory / "pytest.ini"), "--rootdir", str(directory),
-           f"--junitxml={report}", "-o", "junit_family=xunit2", *files]
-    try:
-        proc = subprocess.run(cmd, cwd=directory, env=env, capture_output=True, text=True,
-                              encoding="utf-8", errors="replace", check=False,
-                              timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return None, report
-    return proc, report
+    args = ["-q", "-p", "no:cacheprovider", "-c", "pytest.ini", "--rootdir", ".",
+            "--junitxml=report.xml", "-o", "junit_family=xunit2", *files]
+    return runner.pytest(directory, args, timeout, env), report
 
 
 def parse_junit(report: Path) -> tuple[int, int, int, list[str]]:
@@ -114,7 +111,7 @@ def parse_junit(report: Path) -> tuple[int, int, int, list[str]]:
 
 
 def verify(candidates: dict[str, str], bases: list[BaseTask], *, fuzz_seed: int = 0,
-           timeout: float = 60.0) -> VerifyResult:
+           timeout: float = 60.0, runner=None) -> VerifyResult:
     """Grade candidate module sources (keyed by file name) against the hidden tests."""
     expected = expected_count(bases)
     violations: dict[str, list[str]] = {}
@@ -139,7 +136,7 @@ def verify(candidates: dict[str, str], bases: list[BaseTask], *, fuzz_seed: int 
             (d / base.test_file).write_text(base.tests, encoding="utf-8")
             (d / base.fuzz_file).write_text(base.fuzz, encoding="utf-8")
             files += [base.test_file, base.fuzz_file]
-        proc, report = run_pytest(d, files, timeout, _clean_env(fuzz_seed))
+        proc, report = run_pytest(d, files, timeout, _clean_env(fuzz_seed), runner)
         if proc is None:
             return VerifyResult(0, 0, expected, timed_out=True, note="timeout")
         tests, passed, skipped, failed = parse_junit(report)

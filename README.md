@@ -162,7 +162,8 @@ python -m bugforge show --difficulty easy --seed 0 --files
 python -m bugforge baselines --seeds 5
 ```
 
-Python 3.10+, no dependencies besides pytest. CI runs on Linux and Windows.
+Python 3.10+, no dependencies besides pytest (the LLM clients use the standard
+library). CI runs on Linux and Windows, plus a Docker sandbox job.
 
 ### Environment API
 
@@ -185,6 +186,68 @@ the tests until the only survivors are equivalent mutants.
 
 ---
 
+## Sandboxing model-written code
+
+`run_tests` executes code a model wrote, so it never runs unguarded:
+
+| runner | what runs | isolation |
+|---|---|---|
+| `local` (default) | only module files that pass the static policy, with the **original** visible tests; edited or added test files are ignored | the policy: no imports outside a pure-stdlib allow-list, no `eval`/`getattr`/dunders, no import-time calls |
+| `docker` | the workspace exactly as the agent left it | `--network none`, read-only root filesystem, `--cap-drop ALL`, `no-new-privileges`, memory/CPU/process limits, timeout that kills the container |
+
+Grading can run in the container too (`BugForgeEnv(sandbox="docker")` does
+both). A CI job builds the image and runs the oracle, all eight exploits and a
+network probe inside it, and fails if those tests are skipped.
+
+```bash
+docker build -t bugforge-sandbox docker
+python -m bugforge calibrate --sandbox docker ...   # or set BUGFORGE_SANDBOX=docker
+```
+
+---
+
+## LLM agent and difficulty calibration
+
+`agents/llm.py` drives a tool-calling model through the environment, one tool
+call per step (parallel calls are queued, prose answers get a nudge). Two
+backends share a provider-neutral transcript:
+
+- **Ollama** (free, local): any tool-capable model on your machine.
+- **Anthropic** (paid): the Messages API with native tool use, key read from
+  `ANTHROPIC_API_KEY`. A `--max-tokens` ceiling stops a sweep before it overspends.
+
+`python -m bugforge calibrate` runs the agent over a grid of generator
+settings (files × bugs × share of tests shown), appending one JSON line per
+episode with the full transcript; it resumes where it stopped. The report then:
+
+1. gives the observed pass rate per configuration with a **Wilson 95% interval**;
+2. fits a **logistic difficulty model** (IRLS, lightly L2-regularized so a small,
+   perfectly separable sweep still gives finite coefficients) on the knobs, and
+   picks the configurations closest to target pass rates (80% / 50% / 20%) for
+   that model;
+3. classifies every failure from its transcript and episode metrics:
+   ran out of steps, policy violation, never ran tests, submitted with red
+   tests, edited after the last test run, edited the wrong files, missed one of
+   several buggy files, or passed the visible tests but not the hidden ones;
+4. reports behaviour: tests before the first edit, edits to tests or to
+   bug-free modules, tool calls, tool errors, tokens and time per episode.
+
+### Running it for free
+
+```bash
+docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama ollama/ollama
+docker exec ollama ollama pull qwen2.5-coder:3b
+docker build -t bugforge-sandbox docker
+python -m bugforge calibrate --provider ollama --model qwen2.5-coder:3b --seeds 8 --sandbox docker
+```
+
+On a CPU this takes hours (it is meant to run overnight) and costs nothing.
+Results go to `runs/` as JSONL plus a Markdown report.
+
+*The first sweep's results will be added here.*
+
+---
+
 ## Layout
 
 ```
@@ -192,27 +255,23 @@ src/bugforge/
   mutations.py   AST mutation operators and deterministic site enumeration
   index.py       kill-matrix builder and mutation scores
   generator.py   seeded task generation with end-to-end validity checks
-  sandbox.py     the agent's workspace and tools
+  sandbox.py     the agent's workspace and tools (guarded local mode)
+  runner.py      local and Docker execution backends
   policy.py      static policy for submitted code
   verifier.py    hidden-test grading (the six layers above)
   env.py         Gymnasium-style environment
-  agents/        oracle, random, and the eight exploit agents
+  experiments.py calibration sweeps, logistic difficulty model, failure analysis
+  agents/        oracle, random, eight exploit agents, and the LLM agent
+docker/          sandbox image
 tasks/base/      the five hand-written base modules
 tests/           unit tests, solvability and exploit audits
 ```
 
 ## Roadmap
 
-- **Docker sandbox backend.** The current workspace runs the agent's test
-  command as a local subprocess. Grading is isolated, but running untrusted
-  model-written code safely needs a container (no network, CPU/memory limits).
-- **LLM agent and difficulty calibration.** A function-calling agent over an
-  OpenAI-compatible API, a sweep over difficulty × seeds, and a logistic fit of
-  pass rate so the generator can hit a target difficulty distribution for a
-  given model.
-- **Learnability check.** A small GRPO fine-tune on the easy tier to show the
-  reward carries a learning signal.
-- **Rollout analysis.** A failure taxonomy from agent transcripts.
+- **Learnability check.** A small GRPO fine-tune on the easiest tier (Colab) to
+  show the reward carries a learning signal, not just a difficulty reading.
+- **More base modules**, so hard tiers can hold more distractors.
 
 ## Limitations
 

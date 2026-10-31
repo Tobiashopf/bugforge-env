@@ -20,3 +20,19 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: python -m ruff check .
       - run: python -m pytest -q
+
+  docker-sandbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: docker build -t bugforge-sandbox docker
+      - run: python -m pip install -e ".[dev]"
+      - name: Sandbox, oracle and exploit audit inside Docker
+        run: python -m pytest -q tests/test_sandbox.py -rs
+      - name: Fail if the Docker tests were skipped
+        run: |
+          python -m pytest -q tests/test_sandbox.py -k docker -rs | tee out.txt
+          if grep -q skipped out.txt; then exit 1; fi

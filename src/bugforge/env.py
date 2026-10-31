@@ -16,7 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .generator import Task, generate
+from .generator import Difficulty, Task, generate
+from .runner import get_runner
 from .sandbox import ToolError, Workspace
 from .verifier import VerifyResult, verify
 
@@ -51,9 +52,11 @@ def _truncate(text: str, limit: int) -> str:
 
 
 class BugForgeEnv:
-    def __init__(self, difficulty: str = "easy", max_steps: int = 30,
-                 max_obs_chars: int = 6000, partial_credit: bool = False):
+    def __init__(self, difficulty: str | Difficulty = "easy", max_steps: int = 30,
+                 max_obs_chars: int = 6000, partial_credit: bool = False,
+                 sandbox: str | None = None):
         self.difficulty = difficulty
+        self.runner = get_runner(sandbox)
         self.max_steps = max_steps
         self.max_obs_chars = max_obs_chars
         self.partial_credit = partial_credit
@@ -71,8 +74,13 @@ class BugForgeEnv:
     def reset(self, seed: int, task: Task | None = None) -> tuple[str, dict]:
         self.close()
         self.task = task or generate(seed, self.difficulty)
-        self.ws = Workspace(self.task.workspace).__enter__()
+        self.ws = Workspace(self.task.workspace, self.task.module_files,
+                            self.runner).__enter__()
         self.steps, self.test_runs, self.done = 0, 0, False
+        self.tool_errors = 0
+        self.edited: list[str] = []
+        self.last_visible_pass: bool | None = None
+        self.tests_before_edit = False
         obs = (self.task.workspace["README.md"] + "\nFiles:\n"
                + "\n".join(f"  {f}" for f in self.ws.list_files())
                + f"\n\nYou have {self.max_steps} tool calls.")
@@ -90,8 +98,10 @@ class BugForgeEnv:
         try:
             obs = self._run_tool(tool, args)
         except ToolError as exc:
+            self.tool_errors += 1
             obs = f"error: {exc}"
         except (KeyError, TypeError) as exc:
+            self.tool_errors += 1
             obs = f"error: bad or missing argument for {tool}: {exc}"
         if self.steps >= self.max_steps:
             final_obs, reward, term, trunc, info = self._finish("step budget exhausted",
@@ -116,22 +126,34 @@ class BugForgeEnv:
             return ws.read_file(args["path"])
         if tool == "write_file":
             ws.write_file(args["path"], args["content"])
+            self._edited(args["path"])
             return f"wrote {args['path']}"
         if tool == "replace_in_file":
             ws.replace(args["path"], args["old"], args["new"])
+            self._edited(args["path"])
             return f"edited {args['path']}"
         if tool == "run_tests":
             self.test_runs += 1
+            if not self.edited:
+                self.tests_before_edit = True
             run = ws.run_tests()
+            self.last_visible_pass = run.all_passed
             head = "all visible tests passed" if run.all_passed else \
                 f"{run.failed} failed, {run.passed} passed"
             return f"{head}\n\n{run.output}"
         raise ToolError(f"unknown tool '{tool}'")
 
+    def _edited(self, path: str) -> None:
+        name = path.replace("\\", "/")
+        if name not in self.edited:
+            self.edited.append(name)
+        self.last_visible_pass = None  # stale after an edit
+
     def grade(self) -> VerifyResult:
         assert self.ws is not None and self.task is not None
         submission = self.ws.snapshot(self.task.module_files)
-        return verify(submission, self.task.load_bases(), fuzz_seed=self.task.seed)
+        return verify(submission, self.task.load_bases(), fuzz_seed=self.task.seed,
+                      runner=self.runner)
 
     def _finish(self, why: str, truncated: bool) -> tuple[str, float, bool, bool, dict]:
         result = self.grade()
@@ -140,7 +162,11 @@ class BugForgeEnv:
         info = {"steps": self.steps, "test_runs": self.test_runs, "solved": result.solved,
                 "pass_fraction": result.pass_fraction, "violations": result.violations,
                 "failed": result.failed, "note": result.note,
-                "bugs": [b.__dict__ for b in self.task.bugs], "end": why}
+                "bugs": [b.__dict__ for b in self.task.bugs], "end": why,
+                "difficulty": self.task.difficulty, "bases": list(self.task.bases),
+                "edited": list(self.edited), "tool_errors": self.tool_errors,
+                "last_visible_pass": self.last_visible_pass,
+                "tests_before_edit": self.tests_before_edit, "sandbox": self.runner.name}
         obs = f"Episode over ({why}). Reward: {reward:.2f}"
         self.close()
         return obs, reward, not truncated, truncated, info

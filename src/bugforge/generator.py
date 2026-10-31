@@ -139,19 +139,31 @@ def _draw(rng: random.Random, diff: Difficulty, names: list[str]) -> Task | None
 def _visible_fails(task: Task) -> bool:
     """Run only the visible tests on the bugged modules (what the agent will see)."""
     from .sandbox import Workspace
-    with Workspace(task.workspace) as ws:
+    with Workspace(task.workspace, task.module_files) as ws:
         return not ws.run_tests().all_passed
 
 
-def generate(seed: int, difficulty: str = "easy", *, check: bool = True,
+def custom(n_files: int, n_bugs: int, visible_frac: float,
+           each_bug_visible: bool | None = None) -> Difficulty:
+    """A difficulty outside the three named tiers (used by calibration sweeps)."""
+    if each_bug_visible is None:
+        each_bug_visible = visible_frac >= 0.4
+    name = f"f{n_files}b{n_bugs}v{round(visible_frac * 100)}{'e' if each_bug_visible else ''}"
+    return Difficulty(name, n_files, n_bugs, visible_frac, each_bug_visible)
+
+
+def generate(seed: int, difficulty: str | Difficulty = "easy", *, check: bool = True,
              max_attempts: int = 50) -> Task:
-    if difficulty not in DIFFICULTIES:
-        raise ValueError(f"difficulty must be one of {sorted(DIFFICULTIES)}")
-    diff = DIFFICULTIES[difficulty]
+    if isinstance(difficulty, Difficulty):
+        diff = difficulty
+    elif difficulty in DIFFICULTIES:
+        diff = DIFFICULTIES[difficulty]
+    else:
+        raise ValueError(f"difficulty must be one of {sorted(DIFFICULTIES)} or a Difficulty")
     names = base_mod.available()
     if diff.n_files > len(names):
-        raise ValueError(f"{difficulty} needs {diff.n_files} base tasks, found {len(names)}")
-    rng = random.Random(f"bugforge:{difficulty}:{seed}")
+        raise ValueError(f"{diff.name} needs {diff.n_files} base tasks, found {len(names)}")
+    rng = random.Random(f"bugforge:{diff.name}:{seed}")
     for _ in range(max_attempts):
         task = _draw(rng, diff, names)
         if task is None:

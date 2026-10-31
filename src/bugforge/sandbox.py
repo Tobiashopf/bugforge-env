@@ -1,9 +1,15 @@
 """The agent's workspace: a temporary directory plus the file and test tools.
 
-This backend runs the agent's test command as a local subprocess with a
-timeout. It isolates *grading* (see verifier.py) but it is not a security
-boundary for running untrusted, model-written code: use the Docker backend
-for that (planned, see README).
+``run_tests`` executes model-written code, so where it runs matters:
+
+- **Docker runner**: the workspace runs as the agent left it (its own test
+  files, conftest, anything) inside a network-less, resource-limited container.
+- **Local runner (guarded)**: nothing the agent wrote runs unless it passes the
+  same static policy as grading. Module files are policy-checked and copied,
+  with the *original* visible tests, into a fresh directory; edited or added
+  test files are ignored. The policy forbids imports outside a pure-stdlib
+  allow-list, ``eval``/``getattr``/dunder access and import-time calls, which
+  keeps a model from reaching the filesystem, network or processes.
 """
 from __future__ import annotations
 
@@ -13,6 +19,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from . import policy
+from .runner import LocalRunner
 from .verifier import parse_junit, run_pytest
 
 MAX_FILE_BYTES = 200_000
@@ -35,8 +43,12 @@ class TestRun:
 
 
 class Workspace:
-    def __init__(self, files: dict[str, str]):
+    def __init__(self, files: dict[str, str], module_files: list[str] | None = None,
+                 runner=None):
         self._initial = dict(files)
+        self.module_files = module_files or sorted(
+            f for f in files if f.endswith(".py") and not f.startswith("test_"))
+        self.runner = runner or LocalRunner()
         self.root: Path | None = None
 
     def __enter__(self):
@@ -92,16 +104,44 @@ class Workspace:
 
     def run_tests(self, timeout: float = 30.0) -> TestRun:
         assert self.root is not None
-        tests = sorted(p.name for p in self.root.glob("test_*.py"))
+        if self.runner.isolates_code:
+            return self._pytest(self.root, timeout)
+
+        problems = {f: policy.check(self.read_file(f)) for f in self.module_files
+                    if (self.root / f).is_file()}
+        problems = {f: p for f, p in problems.items() if p}
+        if problems:
+            lines = [f"{f}: {msg}" for f, ps in problems.items() for msg in ps]
+            return TestRun(0, 1, "tests not run: module code violates the sandbox policy\n"
+                           + "\n".join(lines))
+        with tempfile.TemporaryDirectory(prefix="bugforge-run-") as tmp:
+            d = Path(tmp)
+            for f in self.module_files:
+                if (self.root / f).is_file():
+                    (d / f).write_text(self.read_file(f), encoding="utf-8")
+            notes = []
+            for name, content in self._initial.items():
+                if name.startswith("test_") and name.endswith(".py"):
+                    (d / name).write_text(content, encoding="utf-8")
+                    if self.read_file(name) != content:
+                        notes.append(name)
+            run = self._pytest(d, timeout)
+        if notes:
+            run.output += ("\n\nnote: edits to " + ", ".join(notes)
+                           + " are ignored; the original tests were run")
+        return run
+
+    def _pytest(self, directory: Path, timeout: float) -> TestRun:
+        tests = sorted(p.name for p in directory.glob("test_*.py"))
         if not tests:
             return TestRun(0, 0, "no test files found")
-        ini = self.root / "pytest.ini"
+        ini = directory / "pytest.ini"
         if not ini.exists():
             ini.write_text("[pytest]\n", encoding="utf-8")
         env = {k: v for k, v in os.environ.items() if k not in {"PYTHONPATH", "PYTEST_ADDOPTS"}}
         env.update(PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONDONTWRITEBYTECODE="1",
                    PYTHONIOENCODING="utf-8")
-        proc, report = run_pytest(self.root, tests + ["--tb=short"], timeout, env)
+        proc, report = run_pytest(directory, tests + ["--tb=short"], timeout, env, self.runner)
         if proc is None:
             return TestRun(0, 0, f"tests timed out after {timeout:.0f}s", timed_out=True)
         total, passed, _, failed = parse_junit(report)
