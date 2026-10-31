@@ -1,0 +1,625 @@
+{
+ "name": "grades",
+ "hash": "affb6c930fb774f6",
+ "tests": [
+  "test_letter_a_at_boundary",
+  "test_letter_b_just_below_a",
+  "test_letter_b_at_boundary",
+  "test_letter_c_at_boundary",
+  "test_letter_c_just_below_b",
+  "test_letter_d_at_boundary",
+  "test_letter_f_just_below_d",
+  "test_letter_accepts_extremes",
+  "test_letter_above_range_raises",
+  "test_letter_below_range_raises",
+  "test_weighted_average",
+  "test_weighted_average_rounds",
+  "test_weighted_average_zero_weight_ignored",
+  "test_weighted_average_length_mismatch_raises",
+  "test_weighted_average_empty_raises",
+  "test_weighted_average_negative_weight_raises",
+  "test_weighted_average_all_zero_weights_raises",
+  "test_curve_shifts_to_target",
+  "test_curve_custom_target",
+  "test_curve_clamps_at_zero",
+  "test_curve_clamps_at_hundred",
+  "test_curve_empty",
+  "test_rank_distinct",
+  "test_rank_ties_share_and_skip",
+  "test_passed_count_cutoff_inclusive",
+  "test_passed_count_custom_cutoff"
+ ],
+ "sites": {
+  "negate:10": {
+   "operator": "negate",
+   "line": 5,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_letter_a_at_boundary",
+    "test_letter_above_range_raises",
+    "test_letter_accepts_extremes",
+    "test_letter_b_at_boundary",
+    "test_letter_b_just_below_a",
+    "test_letter_below_range_raises",
+    "test_letter_c_at_boundary",
+    "test_letter_c_just_below_b",
+    "test_letter_d_at_boundary",
+    "test_letter_f_just_below_d",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:11": {
+   "operator": "negate",
+   "line": 7,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_letter_a_at_boundary",
+    "test_letter_accepts_extremes",
+    "test_letter_b_at_boundary",
+    "test_letter_b_just_below_a",
+    "test_letter_c_at_boundary",
+    "test_letter_c_just_below_b",
+    "test_letter_d_at_boundary",
+    "test_letter_f_just_below_d",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:12": {
+   "operator": "negate",
+   "line": 9,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_letter_accepts_extremes",
+    "test_letter_b_at_boundary",
+    "test_letter_b_just_below_a",
+    "test_letter_c_at_boundary",
+    "test_letter_c_just_below_b",
+    "test_letter_d_at_boundary",
+    "test_letter_f_just_below_d",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:13": {
+   "operator": "negate",
+   "line": 11,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_letter_accepts_extremes",
+    "test_letter_c_at_boundary",
+    "test_letter_c_just_below_b",
+    "test_letter_d_at_boundary",
+    "test_letter_f_just_below_d",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:14": {
+   "operator": "negate",
+   "line": 13,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_letter_accepts_extremes",
+    "test_letter_d_at_boundary",
+    "test_letter_f_just_below_d",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:18": {
+   "operator": "negate",
+   "line": 19,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_length_mismatch_raises",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "negate:22": {
+   "operator": "negate",
+   "line": 28,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_all_zero_weights_raises",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "negate:26": {
+   "operator": "negate",
+   "line": 34,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_curve_clamps_at_hundred",
+    "test_curve_clamps_at_zero",
+    "test_curve_custom_target",
+    "test_curve_empty",
+    "test_curve_shifts_to_target",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "bool:43": {
+   "operator": "bool",
+   "line": 5,
+   "description": "Or swapped",
+   "killed_by": [
+    "test_letter_above_range_raises",
+    "test_letter_below_range_raises",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "noraise:44": {
+   "operator": "noraise",
+   "line": 6,
+   "description": "raise removed",
+   "killed_by": [
+    "test_letter_above_range_raises",
+    "test_letter_below_range_raises",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:45": {
+   "operator": "cmp",
+   "line": 7,
+   "description": "GtE -> Gt",
+   "killed_by": [
+    "test_letter_a_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:47": {
+   "operator": "cmp",
+   "line": 9,
+   "description": "GtE -> Gt",
+   "killed_by": [
+    "test_letter_b_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:49": {
+   "operator": "cmp",
+   "line": 11,
+   "description": "GtE -> Gt",
+   "killed_by": [
+    "test_letter_c_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:51": {
+   "operator": "cmp",
+   "line": 13,
+   "description": "GtE -> Gt",
+   "killed_by": [
+    "test_letter_d_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "bool:57": {
+   "operator": "bool",
+   "line": 19,
+   "description": "Or swapped",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average_length_mismatch_raises"
+   ]
+  },
+  "noraise:58": {
+   "operator": "noraise",
+   "line": 20,
+   "description": "raise removed",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average_length_mismatch_raises"
+   ]
+  },
+  "const:60": {
+   "operator": "const",
+   "line": 21,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_all_zero_weights_raises",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "const:62": {
+   "operator": "const",
+   "line": 22,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "negate:65": {
+   "operator": "negate",
+   "line": 24,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "arith:66": {
+   "operator": "arith",
+   "line": 26,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "arith:67": {
+   "operator": "arith",
+   "line": 27,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "cmp:68": {
+   "operator": "cmp",
+   "line": 28,
+   "description": "Eq -> NotEq",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_all_zero_weights_raises",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "noraise:69": {
+   "operator": "noraise",
+   "line": 29,
+   "description": "raise removed",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average_all_zero_weights_raises"
+   ]
+  },
+  "arith:78": {
+   "operator": "arith",
+   "line": 36,
+   "description": "Sub -> Add",
+   "killed_by": [
+    "test_curve_clamps_at_zero",
+    "test_curve_custom_target",
+    "test_curve_shifts_to_target",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:100": {
+   "operator": "const",
+   "line": 55,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_passed_count_custom_cutoff",
+    "test_passed_count_cutoff_inclusive",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:103": {
+   "operator": "negate",
+   "line": 57,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_passed_count_custom_cutoff",
+    "test_passed_count_cutoff_inclusive",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:106": {
+   "operator": "cmp",
+   "line": 5,
+   "description": "Lt -> LtE",
+   "killed_by": [
+    "test_letter_accepts_extremes",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:107": {
+   "operator": "cmp",
+   "line": 5,
+   "description": "Gt -> GtE",
+   "killed_by": [
+    "test_letter_accepts_extremes",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:111": {
+   "operator": "const",
+   "line": 7,
+   "description": "90 -> 91",
+   "killed_by": [
+    "test_letter_a_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:115": {
+   "operator": "const",
+   "line": 9,
+   "description": "80 -> 81",
+   "killed_by": [
+    "test_letter_b_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:119": {
+   "operator": "const",
+   "line": 11,
+   "description": "70 -> 71",
+   "killed_by": [
+    "test_letter_c_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:123": {
+   "operator": "const",
+   "line": 13,
+   "description": "60 -> 61",
+   "killed_by": [
+    "test_letter_d_at_boundary",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:126": {
+   "operator": "cmp",
+   "line": 19,
+   "description": "NotEq -> Eq",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_length_mismatch_raises",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "cmp:127": {
+   "operator": "cmp",
+   "line": 19,
+   "description": "Eq -> NotEq",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "cmp:137": {
+   "operator": "cmp",
+   "line": 24,
+   "description": "Lt -> LtE",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "noraise:138": {
+   "operator": "noraise",
+   "line": 25,
+   "description": "raise removed",
+   "killed_by": [
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "arith:141": {
+   "operator": "arith",
+   "line": 26,
+   "description": "Mult -> Div",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_all_zero_weights_raises",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "const:147": {
+   "operator": "const",
+   "line": 28,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average_all_zero_weights_raises"
+   ]
+  },
+  "arith:150": {
+   "operator": "arith",
+   "line": 30,
+   "description": "Div -> Mult",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average",
+    "test_weighted_average_rounds",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "const:151": {
+   "operator": "const",
+   "line": 30,
+   "description": "2 -> 3",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average_rounds"
+   ]
+  },
+  "const:170": {
+   "operator": "const",
+   "line": 46,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_rank_distinct",
+    "test_rank_ties_share_and_skip"
+   ]
+  },
+  "negate:173": {
+   "operator": "negate",
+   "line": 48,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_rank_distinct",
+    "test_rank_ties_share_and_skip"
+   ]
+  },
+  "cmp:179": {
+   "operator": "cmp",
+   "line": 57,
+   "description": "GtE -> Gt",
+   "killed_by": [
+    "test_passed_count_custom_cutoff",
+    "test_passed_count_cutoff_inclusive",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "arith:180": {
+   "operator": "arith",
+   "line": 58,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_passed_count_custom_cutoff",
+    "test_passed_count_cutoff_inclusive",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:184": {
+   "operator": "const",
+   "line": 5,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_letter_accepts_extremes",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:187": {
+   "operator": "const",
+   "line": 5,
+   "description": "100 -> 101",
+   "killed_by": [
+    "test_letter_above_range_raises",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:199": {
+   "operator": "const",
+   "line": 19,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:209": {
+   "operator": "const",
+   "line": 24,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_weighted_average_zero_weight_ignored"
+   ]
+  },
+  "cmp:234": {
+   "operator": "cmp",
+   "line": 48,
+   "description": "Gt -> GtE",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_rank_distinct",
+    "test_rank_ties_share_and_skip"
+   ]
+  },
+  "arith:235": {
+   "operator": "arith",
+   "line": 49,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_rank_distinct",
+    "test_rank_ties_share_and_skip"
+   ]
+  },
+  "arith:237": {
+   "operator": "arith",
+   "line": 50,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_rank_distinct",
+    "test_rank_ties_share_and_skip"
+   ]
+  },
+  "const:243": {
+   "operator": "const",
+   "line": 58,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_passed_count_custom_cutoff",
+    "test_passed_count_cutoff_inclusive",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:267": {
+   "operator": "const",
+   "line": 39,
+   "description": "100 -> 101",
+   "killed_by": [
+    "test_curve_clamps_at_hundred",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "const:274": {
+   "operator": "const",
+   "line": 49,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_rank_distinct",
+    "test_rank_ties_share_and_skip"
+   ]
+  },
+  "const:279": {
+   "operator": "const",
+   "line": 50,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_rank_distinct",
+    "test_rank_ties_share_and_skip"
+   ]
+  },
+  "const:293": {
+   "operator": "const",
+   "line": 39,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_curve_clamps_at_zero",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "arith:294": {
+   "operator": "arith",
+   "line": 39,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_curve_clamps_at_hundred",
+    "test_curve_clamps_at_zero",
+    "test_curve_custom_target",
+    "test_curve_shifts_to_target",
+    "test_random_inputs_match_reference"
+   ]
+  }
+ }
+}

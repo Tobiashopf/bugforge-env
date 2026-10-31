@@ -1,0 +1,339 @@
+{
+ "name": "textstats",
+ "hash": "c93f647915932bac",
+ "tests": [
+  "test_tokenize_lowercases",
+  "test_tokenize_splits_on_punctuation",
+  "test_tokenize_keeps_digits",
+  "test_tokenize_last_word_without_trailing_space",
+  "test_tokenize_multiple_separators",
+  "test_tokenize_empty",
+  "test_word_counts",
+  "test_word_counts_single_word",
+  "test_top_k_orders_by_count",
+  "test_top_k_breaks_ties_alphabetically",
+  "test_top_k_default_is_three",
+  "test_top_k_one_is_allowed",
+  "test_top_k_zero_raises",
+  "test_top_k_more_than_available",
+  "test_average_word_length",
+  "test_average_word_length_rounds",
+  "test_average_word_length_single_word",
+  "test_average_word_length_no_words",
+  "test_longest_word",
+  "test_longest_word_first_wins_tie",
+  "test_longest_word_single_letter",
+  "test_longest_word_no_words"
+ ],
+ "sites": {
+  "negate:13": {
+   "operator": "negate",
+   "line": 13,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_rounds",
+    "test_average_word_length_single_word",
+    "test_longest_word_single_letter",
+    "test_random_text_matches_reference",
+    "test_tokenize_empty",
+    "test_tokenize_keeps_digits",
+    "test_tokenize_last_word_without_trailing_space",
+    "test_tokenize_lowercases",
+    "test_tokenize_multiple_separators",
+    "test_tokenize_splits_on_punctuation",
+    "test_top_k_more_than_available",
+    "test_top_k_orders_by_count",
+    "test_word_counts",
+    "test_word_counts_single_word"
+   ]
+  },
+  "negate:22": {
+   "operator": "negate",
+   "line": 26,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_default_is_three",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count",
+    "test_top_k_zero_raises"
+   ]
+  },
+  "negate:29": {
+   "operator": "negate",
+   "line": 35,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_no_words",
+    "test_average_word_length_rounds",
+    "test_average_word_length_single_word",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "negate:46": {
+   "operator": "negate",
+   "line": 8,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_no_words",
+    "test_average_word_length_rounds",
+    "test_average_word_length_single_word",
+    "test_longest_word",
+    "test_longest_word_first_wins_tie",
+    "test_longest_word_no_words",
+    "test_longest_word_single_letter",
+    "test_random_text_matches_reference",
+    "test_tokenize_keeps_digits",
+    "test_tokenize_last_word_without_trailing_space",
+    "test_tokenize_lowercases",
+    "test_tokenize_multiple_separators",
+    "test_tokenize_splits_on_punctuation",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_default_is_three",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count",
+    "test_word_counts",
+    "test_word_counts_single_word"
+   ]
+  },
+  "cmp:62": {
+   "operator": "cmp",
+   "line": 26,
+   "description": "Lt -> LtE",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_one_is_allowed"
+   ]
+  },
+  "noraise:63": {
+   "operator": "noraise",
+   "line": 27,
+   "description": "raise removed",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_zero_raises"
+   ]
+  },
+  "cmp:73": {
+   "operator": "cmp",
+   "line": 35,
+   "description": "Eq -> NotEq",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_no_words",
+    "test_average_word_length_rounds",
+    "test_average_word_length_single_word",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "const:76": {
+   "operator": "const",
+   "line": 37,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_rounds",
+    "test_average_word_length_single_word",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "arith:79": {
+   "operator": "arith",
+   "line": 39,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_rounds",
+    "test_average_word_length_single_word",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "negate:87": {
+   "operator": "negate",
+   "line": 46,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_longest_word",
+    "test_longest_word_first_wins_tie",
+    "test_longest_word_single_letter",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "arith:95": {
+   "operator": "arith",
+   "line": 9,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_rounds",
+    "test_average_word_length_single_word",
+    "test_longest_word",
+    "test_longest_word_first_wins_tie",
+    "test_longest_word_single_letter",
+    "test_random_text_matches_reference",
+    "test_tokenize_keeps_digits",
+    "test_tokenize_last_word_without_trailing_space",
+    "test_tokenize_lowercases",
+    "test_tokenize_multiple_separators",
+    "test_tokenize_splits_on_punctuation",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_default_is_three",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count",
+    "test_word_counts",
+    "test_word_counts_single_word"
+   ]
+  },
+  "negate:96": {
+   "operator": "negate",
+   "line": 10,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_rounds",
+    "test_longest_word",
+    "test_longest_word_first_wins_tie",
+    "test_random_text_matches_reference",
+    "test_tokenize_keeps_digits",
+    "test_tokenize_lowercases",
+    "test_tokenize_multiple_separators",
+    "test_tokenize_splits_on_punctuation",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_default_is_three",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count",
+    "test_word_counts"
+   ]
+  },
+  "arith:105": {
+   "operator": "arith",
+   "line": 21,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count",
+    "test_word_counts",
+    "test_word_counts_single_word"
+   ]
+  },
+  "const:109": {
+   "operator": "const",
+   "line": 26,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_one_is_allowed"
+   ]
+  },
+  "reverse:118": {
+   "operator": "reverse",
+   "line": 29,
+   "description": "sort direction flipped",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count"
+   ]
+  },
+  "const:127": {
+   "operator": "const",
+   "line": 35,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_average_word_length_no_words",
+    "test_average_word_length_single_word",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "const:128": {
+   "operator": "const",
+   "line": 36,
+   "description": "0.0 -> 1.0",
+   "killed_by": [
+    "test_average_word_length_no_words",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "arith:136": {
+   "operator": "arith",
+   "line": 40,
+   "description": "Div -> Mult",
+   "killed_by": [
+    "test_average_word_length",
+    "test_average_word_length_rounds",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "const:137": {
+   "operator": "const",
+   "line": 40,
+   "description": "2 -> 3",
+   "killed_by": [
+    "test_average_word_length_rounds",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "cmp:142": {
+   "operator": "cmp",
+   "line": 46,
+   "description": "Gt -> GtE",
+   "killed_by": [
+    "test_longest_word_first_wins_tie",
+    "test_random_text_matches_reference"
+   ]
+  },
+  "const:161": {
+   "operator": "const",
+   "line": 21,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count",
+    "test_word_counts",
+    "test_word_counts_single_word"
+   ]
+  },
+  "const:206": {
+   "operator": "const",
+   "line": 21,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count",
+    "test_word_counts",
+    "test_word_counts_single_word"
+   ]
+  },
+  "const:240": {
+   "operator": "const",
+   "line": 29,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_random_text_matches_reference",
+    "test_top_k_breaks_ties_alphabetically",
+    "test_top_k_default_is_three",
+    "test_top_k_more_than_available",
+    "test_top_k_one_is_allowed",
+    "test_top_k_orders_by_count"
+   ]
+  }
+ }
+}

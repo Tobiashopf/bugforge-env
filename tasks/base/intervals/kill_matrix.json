@@ -1,0 +1,402 @@
+{
+ "name": "intervals",
+ "hash": "79e13d8462377dec",
+ "tests": [
+  "test_merge_disjoint_keeps_both_sorted",
+  "test_merge_overlapping",
+  "test_merge_touching_intervals_join",
+  "test_merge_gap_of_one_stays_apart",
+  "test_merge_contained_interval_absorbed",
+  "test_merge_drops_empty_intervals",
+  "test_merge_chain",
+  "test_merge_empty_input",
+  "test_merge_invalid_interval_raises",
+  "test_total_covered_counts_union_once",
+  "test_total_covered_disjoint",
+  "test_total_covered_empty",
+  "test_contains_start_is_inclusive",
+  "test_contains_end_is_exclusive",
+  "test_contains_point_before_start",
+  "test_contains_last_point",
+  "test_contains_checks_every_interval",
+  "test_contains_invalid_interval_raises",
+  "test_gaps_between_intervals",
+  "test_gaps_fully_covered",
+  "test_gaps_no_intervals",
+  "test_gaps_ignores_intervals_outside_range",
+  "test_gaps_interval_ending_at_lo_is_ignored",
+  "test_gaps_interval_starting_at_hi_is_ignored",
+  "test_gaps_partial_overlap_at_edges",
+  "test_gaps_empty_range",
+  "test_gaps_invalid_range_raises"
+ ],
+ "sites": {
+  "negate:28": {
+   "operator": "negate",
+   "line": 39,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_empty_range",
+    "test_gaps_fully_covered",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_interval_ending_at_lo_is_ignored",
+    "test_gaps_interval_starting_at_hi_is_ignored",
+    "test_gaps_invalid_range_raises",
+    "test_gaps_no_intervals",
+    "test_gaps_partial_overlap_at_edges",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:32": {
+   "operator": "negate",
+   "line": 49,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_empty_range",
+    "test_gaps_fully_covered",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_interval_ending_at_lo_is_ignored",
+    "test_gaps_interval_starting_at_hi_is_ignored",
+    "test_gaps_no_intervals",
+    "test_gaps_partial_overlap_at_edges",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:37": {
+   "operator": "negate",
+   "line": 5,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_contains_checks_every_interval",
+    "test_contains_end_is_exclusive",
+    "test_contains_invalid_interval_raises",
+    "test_contains_last_point",
+    "test_contains_point_before_start",
+    "test_contains_start_is_inclusive",
+    "test_gaps_between_intervals",
+    "test_gaps_empty_range",
+    "test_gaps_fully_covered",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_interval_ending_at_lo_is_ignored",
+    "test_gaps_interval_starting_at_hi_is_ignored",
+    "test_gaps_partial_overlap_at_edges",
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_disjoint_keeps_both_sorted",
+    "test_merge_drops_empty_intervals",
+    "test_merge_gap_of_one_stays_apart",
+    "test_merge_invalid_interval_raises",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "negate:45": {
+   "operator": "negate",
+   "line": 13,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_fully_covered",
+    "test_gaps_partial_overlap_at_edges",
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_disjoint_keeps_both_sorted",
+    "test_merge_drops_empty_intervals",
+    "test_merge_gap_of_one_stays_apart",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "negate:46": {
+   "operator": "negate",
+   "line": 15,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_empty_range",
+    "test_gaps_fully_covered",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_interval_ending_at_lo_is_ignored",
+    "test_gaps_interval_starting_at_hi_is_ignored",
+    "test_gaps_partial_overlap_at_edges",
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_disjoint_keeps_both_sorted",
+    "test_merge_drops_empty_intervals",
+    "test_merge_gap_of_one_stays_apart",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "const:51": {
+   "operator": "const",
+   "line": 24,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint",
+    "test_total_covered_empty"
+   ]
+  },
+  "arith:54": {
+   "operator": "arith",
+   "line": 26,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "negate:62": {
+   "operator": "negate",
+   "line": 33,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_contains_end_is_exclusive",
+    "test_contains_last_point",
+    "test_contains_point_before_start",
+    "test_contains_start_is_inclusive",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:68": {
+   "operator": "cmp",
+   "line": 39,
+   "description": "Gt -> GtE",
+   "killed_by": [
+    "test_gaps_empty_range",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "noraise:69": {
+   "operator": "noraise",
+   "line": 40,
+   "description": "raise removed",
+   "killed_by": [
+    "test_gaps_invalid_range_raises",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:76": {
+   "operator": "negate",
+   "line": 44,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_fully_covered",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_partial_overlap_at_edges",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "negate:77": {
+   "operator": "negate",
+   "line": 46,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_fully_covered",
+    "test_gaps_partial_overlap_at_edges",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:79": {
+   "operator": "cmp",
+   "line": 49,
+   "description": "Lt -> LtE",
+   "killed_by": [
+    "test_gaps_empty_range",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:86": {
+   "operator": "cmp",
+   "line": 5,
+   "description": "Gt -> GtE",
+   "killed_by": [
+    "test_merge_drops_empty_intervals",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "noraise:87": {
+   "operator": "noraise",
+   "line": 6,
+   "description": "raise removed",
+   "killed_by": [
+    "test_contains_invalid_interval_raises",
+    "test_merge_invalid_interval_raises",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:97": {
+   "operator": "cmp",
+   "line": 13,
+   "description": "Eq -> NotEq",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_fully_covered",
+    "test_gaps_partial_overlap_at_edges",
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_disjoint_keeps_both_sorted",
+    "test_merge_drops_empty_intervals",
+    "test_merge_gap_of_one_stays_apart",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "bool:99": {
+   "operator": "bool",
+   "line": 15,
+   "description": "And swapped",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_empty_range",
+    "test_gaps_fully_covered",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_interval_ending_at_lo_is_ignored",
+    "test_gaps_interval_starting_at_hi_is_ignored",
+    "test_gaps_partial_overlap_at_edges",
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_disjoint_keeps_both_sorted",
+    "test_merge_drops_empty_intervals",
+    "test_merge_gap_of_one_stays_apart",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "arith:112": {
+   "operator": "arith",
+   "line": 26,
+   "description": "Sub -> Add",
+   "killed_by": [
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "bool:135": {
+   "operator": "bool",
+   "line": 44,
+   "description": "Or swapped",
+   "killed_by": [
+    "test_gaps_ignores_intervals_outside_range",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:137": {
+   "operator": "cmp",
+   "line": 46,
+   "description": "Gt -> GtE",
+   "killed_by": [
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:163": {
+   "operator": "cmp",
+   "line": 15,
+   "description": "LtE -> Lt",
+   "killed_by": [
+    "test_merge_chain",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference"
+   ]
+  },
+  "cmp:196": {
+   "operator": "cmp",
+   "line": 44,
+   "description": "LtE -> Lt",
+   "killed_by": []
+  },
+  "cmp:197": {
+   "operator": "cmp",
+   "line": 44,
+   "description": "GtE -> Gt",
+   "killed_by": []
+  },
+  "const:261": {
+   "operator": "const",
+   "line": 15,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_partial_overlap_at_edges",
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_disjoint_keeps_both_sorted",
+    "test_merge_gap_of_one_stays_apart",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  },
+  "const:267": {
+   "operator": "const",
+   "line": 16,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once"
+   ]
+  },
+  "const:270": {
+   "operator": "const",
+   "line": 17,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once"
+   ]
+  },
+  "const:306": {
+   "operator": "const",
+   "line": 15,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_gaps_between_intervals",
+    "test_gaps_ignores_intervals_outside_range",
+    "test_gaps_partial_overlap_at_edges",
+    "test_merge_chain",
+    "test_merge_contained_interval_absorbed",
+    "test_merge_disjoint_keeps_both_sorted",
+    "test_merge_gap_of_one_stays_apart",
+    "test_merge_overlapping",
+    "test_merge_touching_intervals_join",
+    "test_random_inputs_match_reference",
+    "test_total_covered_counts_union_once",
+    "test_total_covered_disjoint"
+   ]
+  }
+ }
+}
