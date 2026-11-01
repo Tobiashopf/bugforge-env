@@ -42,6 +42,10 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class ModelServerError(RuntimeError):
+    """The model API failed (unreachable, timed out, or an HTTP error)."""
+
+
 @dataclass
 class Budget:
     """Token ceiling shared by every agent in a run (0 = unlimited)."""
@@ -99,12 +103,54 @@ def _with_retries(fn, attempts: int = 4):
             retryable = exc.code in (408, 429, 500, 502, 503, 504, 529)
             if not retryable or i == attempts - 1:
                 body = exc.read().decode("utf-8", "replace")[:500]
-                raise RuntimeError(f"HTTP {exc.code}: {body}") from exc
-        except (urllib.error.URLError, TimeoutError) as exc:
+                raise ModelServerError(f"HTTP {exc.code}: {body}") from exc
+        except TimeoutError as exc:
+            # A request that timed out will usually time out again; one retry only.
+            if i >= min(1, attempts - 1):
+                raise ModelServerError(f"model server timed out: {exc}") from exc
+        except urllib.error.URLError as exc:
+            if isinstance(exc.reason, TimeoutError) and i >= min(1, attempts - 1):
+                raise ModelServerError(f"model server timed out: {exc}") from exc
             if i == attempts - 1:
-                raise RuntimeError(f"cannot reach the model server: {exc}") from exc
+                raise ModelServerError(f"cannot reach the model server: {exc}") from exc
         time.sleep(2 ** i)
     raise AssertionError("unreachable")
+
+
+TOOL_NAMES = {t["name"] for t in TOOLS}
+
+
+def calls_from_text(text: str, turn: int) -> list[ToolCall]:
+    """Recover tool calls a model wrote as JSON in plain text.
+
+    Small open models often know which tool they want but print
+    ``{"name": "read_file", "arguments": {...}}`` (sometimes inside a code fence
+    or ``<tool_call>`` tags) instead of emitting a structured call. Only objects
+    naming a real tool are accepted, so ordinary JSON in prose is ignored.
+    """
+    decoder = json.JSONDecoder()
+    calls: list[ToolCall] = []
+    i = 0
+    while (start := text.find("{", i)) != -1:
+        try:
+            obj, end = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            i = start + 1
+            continue
+        i = end
+        if not isinstance(obj, dict):
+            continue
+        fn = obj.get("function") if isinstance(obj.get("function"), dict) else obj
+        name = fn.get("name") or fn.get("tool")
+        args = fn.get("arguments", fn.get("parameters", fn.get("args", {})))
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except json.JSONDecodeError:
+                continue
+        if name in TOOL_NAMES and isinstance(args, dict):
+            calls.append(ToolCall(f"text_{turn}_{len(calls)}", name, args))
+    return calls
 
 
 class OllamaClient:
@@ -113,7 +159,7 @@ class OllamaClient:
     provider = "ollama"
 
     def __init__(self, model: str = "qwen2.5-coder:3b", host: str | None = None,
-                 num_ctx: int = 16384, temperature: float = 0.0, timeout: float = 600):
+                 num_ctx: int = 16384, temperature: float = 0.0, timeout: float = 1800):
         self.model = model
         self.host = (host or os.environ.get("OLLAMA_HOST") or "http://localhost:11434").rstrip("/")
         if not self.host.startswith("http"):
@@ -218,11 +264,11 @@ class AnthropicClient:
         return self.parse(data, turn)
 
 
-def make_client(provider: str, model: str | None = None):
+def make_client(provider: str, model: str | None = None, timeout: float | None = None):
     if provider == "ollama":
-        return OllamaClient(model or "qwen2.5-coder:3b")
+        return OllamaClient(model or "qwen2.5-coder:3b", timeout=timeout or 1800)
     if provider == "anthropic":
-        return AnthropicClient(model or "claude-haiku-5-5")
+        return AnthropicClient(model or "claude-haiku-5-5", timeout=timeout or 120)
     raise ValueError(f"unknown provider '{provider}' (use 'ollama' or 'anthropic')")
 
 
@@ -234,6 +280,9 @@ class LLMAgent:
     budget: Budget = field(default_factory=Budget)
     system: str = SYSTEM_PROMPT
     max_nudges: int = 2
+    parse_text_calls: bool = True
+    keep_recent_tool_turns: int = 2   # tool outputs shown in full
+    clip_old_outputs: int = 600       # older outputs are cut to this many characters
 
     def __post_init__(self):
         self.name = f"llm:{self.client.provider}:{getattr(self.client, 'model', '?')}"
@@ -246,6 +295,7 @@ class LLMAgent:
         self.last_call: ToolCall | None = None
         self.turns = 0
         self.input_tokens = self.output_tokens = 0
+        self.text_calls = 0
 
     def act(self, obs: str) -> dict:
         if self.last_call is not None:
@@ -264,17 +314,46 @@ class LLMAgent:
         for _ in range(self.max_nudges + 1):
             self.budget.check()
             self.turns += 1
-            reply = self.client.complete(self.system, self.transcript, self.turns)
+            reply = self.client.complete(self.system, self.view(), self.turns)
             self.budget.add(reply.input_tokens, reply.output_tokens)
             self.input_tokens += reply.input_tokens
             self.output_tokens += reply.output_tokens
-            self.transcript.append({"role": "assistant", "text": reply.text,
-                                    "calls": reply.calls})
-            if reply.calls:
-                return list(reply.calls)
+            calls = list(reply.calls)
+            text = reply.text
+            if not calls and self.parse_text_calls:
+                calls = calls_from_text(reply.text, self.turns)
+                if calls:
+                    self.text_calls += len(calls)
+                    text = ""  # the JSON now lives in the structured call
+            self.transcript.append({"role": "assistant", "text": text, "calls": calls})
+            if calls:
+                return list(calls)  # a copy: act() pops from the queue, not the transcript
             self.transcript.append({"role": "user", "text": NUDGE})
         give_up = ToolCall(f"auto_{self.turns}", "submit", {})
         return [give_up]
+
+    def view(self) -> list[dict]:
+        """What the model is sent: the transcript with old tool outputs clipped.
+
+        Files read ten turns ago are re-sent on every request otherwise, and on a
+        CPU the prompt length dominates the time per call. The last
+        ``keep_recent_tool_turns`` tool turns stay whole; the model can re-read a
+        file if it needs it again. The full outputs remain in ``transcript``.
+        """
+        tool_idx = [i for i, t in enumerate(self.transcript) if t["role"] == "tool"]
+        old = set(tool_idx[:-self.keep_recent_tool_turns] if self.keep_recent_tool_turns
+                  else tool_idx)
+        out = []
+        for i, t in enumerate(self.transcript):
+            if i in old:
+                lim = self.clip_old_outputs
+                out.append({"role": "tool", "results": [
+                    (c, o if len(o) <= lim else
+                     o[:lim] + f"\n... [{len(o) - lim} more characters; read again if needed]")
+                    for c, o in t["results"]]})
+            else:
+                out.append(t)
+        return out
 
     def transcript_json(self, max_chars: int = 4000) -> list[dict]:
         """The transcript in a JSON-friendly form, long tool outputs clipped."""

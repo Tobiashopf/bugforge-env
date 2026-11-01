@@ -29,6 +29,7 @@ class Difficulty:
     n_bugs: int             # mutation sites injected (spread over the modules)
     visible_frac: float     # share of each module's unit tests shown to the agent
     each_bug_visible: bool  # every bug is caught by at least one shown test
+    operators: tuple[str, ...] | None = None  # restrict the bug types (None = all)
 
 
 DIFFICULTIES = {
@@ -91,7 +92,8 @@ def _draw(rng: random.Random, diff: Difficulty, names: list[str]) -> Task | None
         sites = indexes[name]["sites"]
         used_lines = {sites[s]["line"] for s in picked[name]}
         pool = [sid for sid, s in sites.items()
-                if s["killed_by"] and sid not in picked[name] and s["line"] not in used_lines]
+                if s["killed_by"] and sid not in picked[name] and s["line"] not in used_lines
+                and (diff.operators is None or s["operator"] in diff.operators)]
         if not pool:
             return None
         picked[name].append(rng.choice(sorted(pool)))
@@ -144,12 +146,25 @@ def _visible_fails(task: Task) -> bool:
 
 
 def custom(n_files: int, n_bugs: int, visible_frac: float,
-           each_bug_visible: bool | None = None) -> Difficulty:
-    """A difficulty outside the three named tiers (used by calibration sweeps)."""
+           each_bug_visible: bool | None = None,
+           operators: tuple[str, ...] | None = None) -> Difficulty:
+    """A difficulty outside the three named tiers (used by calibration sweeps).
+
+    ``operators`` restricts which bug types are injected (see ``mutations.OPERATORS``).
+    The first calibration sweep found the bug type to be the strongest predictor
+    of whether a model solves a task, so it is a difficulty knob in its own right.
+    """
     if each_bug_visible is None:
         each_bug_visible = visible_frac >= 0.4
     name = f"f{n_files}b{n_bugs}v{round(visible_frac * 100)}{'e' if each_bug_visible else ''}"
-    return Difficulty(name, n_files, n_bugs, visible_frac, each_bug_visible)
+    if operators:
+        from .mutations import OPERATORS
+        unknown = set(operators) - set(OPERATORS)
+        if unknown:
+            raise ValueError(f"unknown operators: {sorted(unknown)}")
+        operators = tuple(sorted(operators))
+        name += "-" + "+".join(operators)
+    return Difficulty(name, n_files, n_bugs, visible_frac, each_bug_visible, operators)
 
 
 def generate(seed: int, difficulty: str | Difficulty = "easy", *, check: bool = True,

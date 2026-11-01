@@ -22,7 +22,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from .agents import run_episode
-from .agents.llm import Budget, BudgetExceeded, LLMAgent
+from .agents.llm import NUDGE, Budget, BudgetExceeded, LLMAgent, ModelServerError
 from .env import BugForgeEnv
 from .generator import Difficulty, custom, generate
 
@@ -62,6 +62,8 @@ def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
     jobs = [(d, s) for s in seeds for d in grid if (model, d.name, s) not in done]
     log(f"{len(jobs)} episodes to run ({len(done)} already in {out})")
     t_start = time.time()
+    failures_in_a_row = 0
+    skipped = 0
     for i, (diff, seed) in enumerate(jobs, 1):
         env = BugForgeEnv(diff, max_steps=max_steps, sandbox=sandbox)
         agent = LLMAgent(client, budget=budget)
@@ -73,6 +75,17 @@ def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
             env.close()
             log(f"stopping: {exc}")
             break
+        except ModelServerError as exc:
+            env.close()
+            skipped += 1
+            failures_in_a_row += 1
+            log(f"[{i}/{len(jobs)}] {diff.name:<10} seed {seed:<3} skipped: {exc} "
+                "(not recorded; rerun the same command to retry it)")
+            if failures_in_a_row >= 3:
+                log("stopping: the model server failed 3 episodes in a row")
+                break
+            continue
+        failures_in_a_row = 0
         rec = {
             "provider": client.provider, "model": model, "difficulty": diff.name,
             "config": {"n_files": diff.n_files, "n_bugs": diff.n_bugs,
@@ -80,14 +93,23 @@ def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
                        "each_bug_visible": diff.each_bug_visible},
             "seed": seed, "reward": res["reward"], "solved": res["solved"],
             "steps": res["steps"], "test_runs": res["test_runs"], "end": res["end"],
-            "turns": agent.turns, "input_tokens": agent.input_tokens,
+            "turns": agent.turns, "text_calls": agent.text_calls,
+            "input_tokens": agent.input_tokens,
             "output_tokens": agent.output_tokens, "seconds": round(time.time() - t0, 1),
             "edited": res["edited"], "bug_files": sorted({b["file"] for b in res["bugs"]}),
+            "bugs": [{"file": b["file"], "operator": b["operator"],
+                      "description": b["description"]} for b in res["bugs"]],
+            "stalls": sum(1 for t in agent.transcript
+                          if t["role"] == "user" and t["text"] == NUDGE),
             "module_files": [f"{b}.py" for b in res["bases"]],
             "tool_errors": res["tool_errors"], "last_visible_pass": res["last_visible_pass"],
             "tests_before_edit": res["tests_before_edit"],
-            "violations": bool(res["violations"]), "hidden_failed": len(res["failed"]),
-            "sandbox": res["sandbox"], "transcript": agent.transcript_json(),
+            "violations": [m for ms in res["violations"].values() for m in ms][:5],
+            "hidden_failed": len(res["failed"]),
+            "sandbox": res["sandbox"],
+            "agent": {"max_steps": max_steps, "keep_recent_tool_turns": agent.keep_recent_tool_turns,
+                      "clip_old_outputs": agent.clip_old_outputs},
+            "transcript": agent.transcript_json(),
         }
         with out.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
@@ -95,6 +117,8 @@ def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
         eta = elapsed / i * (len(jobs) - i)
         log(f"[{i}/{len(jobs)}] {diff.name:<10} seed {seed:<3} reward {res['reward']:.0f}  "
             f"{rec['seconds']:>6.1f}s  tokens {budget.used:,}  eta {eta / 60:.0f} min")
+    if skipped:
+        log(f"{skipped} episode(s) skipped after model-server errors; rerun to fill them in")
     return load_records(out)
 
 
@@ -178,8 +202,10 @@ def predict(beta: list[float], cfg: dict) -> float:
 # -------------------------------------------------------------------- analysis
 FAILURE_ORDER = [
     ("budget_exhausted", "ran out of tool calls before submitting"),
+    ("broke_syntax", "submitted a module that no longer parses"),
     ("policy_violation", "submitted code the sandbox policy rejects"),
     ("never_ran_tests", "submitted without ever running the tests"),
+    ("gave_up_without_editing", "ran the tests, never edited anything, submitted"),
     ("submitted_red", "submitted while visible tests were still failing"),
     ("untested_last_edit", "edited after the last test run, then submitted"),
     ("wrong_files", "never edited a file that contained a bug"),
@@ -194,9 +220,14 @@ def failure_mode(r: dict) -> str:
     if r["end"] != "submitted":
         return "budget_exhausted"
     if r["violations"]:
+        msgs = r["violations"] if isinstance(r["violations"], list) else []
+        if msgs and all(m.startswith("syntax error") for m in msgs):
+            return "broke_syntax"
         return "policy_violation"
     if r["test_runs"] == 0:
         return "never_ran_tests"
+    if not r["edited"]:
+        return "gave_up_without_editing"
     if r["last_visible_pass"] is False:
         return "submitted_red"
     if r["last_visible_pass"] is None:
@@ -206,6 +237,55 @@ def failure_mode(r: dict) -> str:
     if not bug_files <= edited:
         return "missed_bug_file"
     return "overfit_visible"
+
+
+def stalled(r: dict) -> int:
+    """Nudges the agent needed (replies with no tool call), from the transcript."""
+    return sum(1 for t in r.get("transcript", [])
+               if t["role"] == "user" and t.get("text") == NUDGE)
+
+
+def enrich(records: list[dict], grid: list[Difficulty]) -> int:
+    """Add per-bug details to records written before they were logged.
+
+    Tasks are regenerated from (seed, configuration) with the same validity
+    checks as the original run; a record is only enriched if the regenerated
+    bug files match the ones it logged. Returns how many were enriched.
+    """
+    by_name = {d.name: d for d in grid}
+    done = 0
+    for r in records:
+        if r.get("bugs") or r["difficulty"] not in by_name:
+            continue
+        task = generate(r["seed"], by_name[r["difficulty"]])
+        if sorted({b.file for b in task.bugs}) != r["bug_files"]:
+            continue
+        r["bugs"] = [{"file": b.file, "operator": b.operator, "description": b.description}
+                     for b in task.bugs]
+        r["bugs_reconstructed"] = True
+        done += 1
+    for r in records:  # older records logged violations as a bare boolean
+        if r.get("violations") is True:
+            outs = [x["output"] for t in r.get("transcript", []) if t["role"] == "tool"
+                    for x in t["results"] if x["tool"] == "run_tests"]
+            if outs and ("SyntaxError" in outs[-1] or "IndentationError" in outs[-1]):
+                r["violations"] = ["syntax error (inferred from the last test run)"]
+    return done
+
+
+def stuck_in_loop(r: dict, times: int = 3) -> bool:
+    """Did the agent make the same call, and get the same error, `times` times?"""
+    seen: Counter = Counter()
+    for t in r.get("transcript", []):
+        if t["role"] != "tool":
+            continue
+        for res in t["results"]:
+            if res["output"].startswith("error"):
+                key = (res["tool"], json.dumps(res["args"], sort_keys=True), res["output"][:200])
+                seen[key] += 1
+                if seen[key] >= times:
+                    return True
+    return False
 
 
 def report(records: list[dict], targets=(0.8, 0.5, 0.2)) -> str:
@@ -255,13 +335,37 @@ def report(records: list[dict], targets=(0.8, 0.5, 0.2)) -> str:
             lines.append(f"| {name} | {b:+.2f} | {s:.2f} |")
         lines += ["", "**Configurations closest to target pass rates** (from the grid):", ""]
         cfgs = {name: by_cfg[name][0]["config"] for name in by_cfg}
+        preds = {k: predict(beta, c) for k, c in cfgs.items()}
+        lines.append(f"Across the grid this model's predicted pass rate spans "
+                     f"{min(preds.values()):.0%} to {max(preds.values()):.0%}.")
+        lines.append("")
         for t in targets:
-            best = min(cfgs, key=lambda k: abs(predict(beta, cfgs[k]) - t))
-            lines.append(f"- target {t:.0%}: `{best}` (predicted {predict(beta, cfgs[best]):.0%})")
+            best = min(preds, key=lambda k: abs(preds[k] - t))
+            if abs(preds[best] - t) <= 0.1:
+                lines.append(f"- target {t:.0%}: `{best}` (predicted {preds[best]:.0%})")
+            else:
+                lines.append(f"- target {t:.0%}: not reachable within the grid "
+                             f"(closest: `{best}`, predicted {preds[best]:.0%})")
         lines.append("")
     else:
         lines += [("Not enough variation to fit a difficulty model (need some solved and "
                    "some failed episodes across at least 3 configurations)."), ""]
+
+    with_bugs = [r for r in records if r.get("bugs")]
+    if with_bugs:
+        by_op: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+        for r in with_bugs:
+            if len(r["bugs"]) == 1:
+                op = r["bugs"][0]["operator"]
+                by_op[op][0] += int(r["solved"])
+                by_op[op][1] += 1
+        if by_op:
+            lines += ["## Pass rate by injected bug type (single-bug tasks)", "",
+                      "| bug type | n | solved | observed (95% CI) |", "|---|---|---|---|"]
+            for op, (k, m) in sorted(by_op.items(), key=lambda kv: -kv[1][0] / kv[1][1]):
+                lo, hi = wilson(k, m)
+                lines.append(f"| {op} | {m} | {k} | {k / m:.0%} ({lo:.0%}-{hi:.0%}) |")
+            lines.append("")
 
     fails = [r for r in records if not r["solved"]]
     if fails:
@@ -284,18 +388,27 @@ def report(records: list[dict], targets=(0.8, 0.5, 0.2)) -> str:
         clean = set(r["module_files"]) - set(r["bug_files"])
         return bool(set(r["edited"]) & clean)
 
+    def looped(r: dict) -> bool:
+        return stuck_in_loop(r)
+
     def touched_tests(r: dict) -> bool:
         return any(e.startswith("test_") for e in r["edited"])
 
+    text_calls = (f"{sum(r.get('text_calls', 0) for r in records)} of "
+                  f"{sum(r['steps'] for r in records)}")
     rows = [
         ("ran the tests before the first edit", share(lambda r: r["tests_before_edit"])),
         ("edited a test file", share(touched_tests)),
         ("edited a bug-free module", share(touched_clean)),
+        ("repeated the same failing call 3+ times", share(looped)),
+        ("stalled at least once (a reply with no tool call)",
+         share(lambda r: r.get("stalls", stalled(r)) > 0)),
         ("mean tool calls per episode", f"{mean('steps'):.1f}"),
         ("mean test runs per episode", f"{mean('test_runs'):.1f}"),
         ("mean tool-call errors per episode", f"{mean('tool_errors'):.1f}"),
+        ("tool calls written as plain-text JSON (recovered)", text_calls),
         ("mean tokens per episode", f"{toks / n:,.0f}"),
-        ("mean seconds per episode", f"{secs / n:.0f}"),
+        ("median seconds per episode", f"{sorted(r['seconds'] for r in records)[n // 2]:.0f}"),
     ]
     lines += ["## Agent behaviour", "", "| behaviour | value |", "|---|---|"]
     lines += [f"| {label} | {value} |" for label, value in rows]

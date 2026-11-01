@@ -216,6 +216,12 @@ backends share a provider-neutral transcript:
 - **Anthropic** (paid): the Messages API with native tool use, key read from
   `ANTHROPIC_API_KEY`. A `--max-tokens` ceiling stops a sweep before it overspends.
 
+Small open models often know which tool they want but print the call as JSON
+in plain text instead of emitting a structured tool call (the first smoke run
+with Qwen2.5-Coder-3B did exactly this on every turn). The agent recovers
+those calls, accepting only objects that name a real tool, and the report
+counts how often it had to.
+
 `python -m bugforge calibrate` runs the agent over a grid of generator
 settings (files × bugs × share of tests shown), appending one JSON line per
 episode with the full transcript; it resumes where it stopped. The report then:
@@ -244,7 +250,75 @@ python -m bugforge calibrate --provider ollama --model qwen2.5-coder:3b --seeds 
 On a CPU this takes hours (it is meant to run overnight) and costs nothing.
 Results go to `runs/` as JSONL plus a Markdown report.
 
-*The first sweep's results will be added here.*
+### Results: Qwen2.5-Coder-7B, local, on a laptop CPU
+
+63 episodes (8 seeds × 8 configurations; one lost to a model-server timeout),
+766k tokens, about 20 hours of wall clock, $0. Full report:
+[`runs/ollama_qwen2.5-coder-7b_report.md`](runs/ollama_qwen2.5-coder-7b_report.md);
+every transcript is in the JSONL next to it.
+
+| configuration | files | bugs | tests shown | solved | observed (95% CI) |
+|---|---|---|---|---|---|
+| `f1b1v25` | 1 | 1 | 25% | 4 / 8 | 50% (22%–78%) |
+| `f3b1v60e` | 3 | 1 | 60% | 2 / 8 | 25% (7%–59%) |
+| `f1b1v60e` | 1 | 1 | 60% | 0 / 7 | 0% (0%–35%) |
+| all 2- and 3-bug configurations | 3–5 | 2–3 | 25–40% | 0 / 40 | 0% |
+
+**1. The bug type matters more than the configuration knobs.** On single-bug
+tasks:
+
+| injected bug | solved |
+|---|---|
+| swapped arithmetic operator (`+`↔`-`, `*`↔`/`) | 4 / 4 |
+| boundary comparison (`<`↔`<=`) | 1 / 2 |
+| removed guard (`raise` deleted) | 1 / 5 |
+| off-by-one literal | 0 / 5 |
+| negated `if` condition | 0 / 4 |
+| `and`↔`or` | 0 / 2 |
+
+This also explains the oddest cell above: showing *more* tests (`f1b1v60e`,
+0/7) did worse than showing fewer (`f1b1v25`, 4/8) only because none of the
+`f1b1v60e` draws happened to contain an arithmetic bug. The logistic model on
+files/bugs/visibility has wide standard errors for the same reason. The bug
+type is now a generator knob (`custom(..., operators=("arith",))`), and the
+report breaks pass rates down by it.
+
+**2. The model gives up more than it fails.** 81% of failed episodes never
+edited a file: the agent ran the tests, read the code, stopped calling tools,
+and then submitted. It used 5.7 of its 30 tool calls on average and
+stalled at least once in 94% of episodes. For this model a larger step budget
+would not help; what the environment measures at this level is whether the
+agent commits to an edit at all.
+
+**3. The format layer alone can zero an evaluation.** 335 of 361 tool calls
+(93%) arrived as JSON in plain text rather than as structured calls. Before the
+agent learned to recover them, the same harness with Qwen2.5-Coder-3B scored
+0/64 with exactly one action per episode
+([`runs/before-text-recovery_qwen2.5-coder-3b.jsonl`](runs/before-text-recovery_qwen2.5-coder-3b.jsonl)):
+a reading of "can't fix bugs" that was really "can't emit tool calls".
+
+**4. The grid does not reach easy tiers for this model.** Predicted pass rates
+span 1% to 28%, so 80% and 50% tiers are out of reach; the report says so
+instead of picking the nearest wrong configuration. The next sweep should
+build the easy tier from single-file arithmetic and comparison bugs.
+
+No reward hacking was attempted: no test files were edited and nothing hit the
+sandbox policy (two submissions failed because the model broke the module's
+indentation).
+
+### Lessons from running it
+
+- **Read transcripts before trusting a zero.** Two sweeps scored 0 for reasons
+  that had nothing to do with the tasks: unrecovered plain-text tool calls, and
+  a bug in the agent where the action queue aliased the transcript, so the
+  model saw its own turns as empty. Both were found by reading transcripts;
+  the second now has a regression test that checks the exact payload sent to
+  the model.
+- **On a CPU, prompt length is the cost.** Re-sending every file the agent has
+  read made single calls exceed ten minutes. Old tool outputs are now clipped
+  in what the model sees (the full transcript is still logged).
+- **A sweep must survive its infrastructure.** A model-server timeout now skips
+  the episode (rerunning fills it in) instead of killing an overnight run.
 
 ---
 
@@ -269,9 +343,13 @@ tests/           unit tests, solvability and exploit audits
 
 ## Roadmap
 
+- **Bug-type tiers.** Re-run the calibration with tiers built from the
+  `operators` knob, to confirm finding 1 with more than a handful of tasks per
+  bug type.
 - **Learnability check.** A small GRPO fine-tune on the easiest tier (Colab) to
   show the reward carries a learning signal, not just a difficulty reading.
-- **More base modules**, so hard tiers can hold more distractors.
+- **A stronger model** on the same grid, to see whether the difficulty ordering
+  holds when the floor effect is gone.
 
 ## Limitations
 
@@ -280,6 +358,10 @@ tests/           unit tests, solvability and exploit audits
 - The static policy is strict on purpose. It would reject some unusual but
   legitimate code (for example, top-level calls).
 - Equivalent-mutant detection is by hand; the four survivors are documented above.
+- The calibration results come from one small local model and 63 episodes; the
+  intervals are wide and are reported as such. The agent's nudge after a reply
+  with no tool call ("... Call submit when you are done") may make giving up
+  easier; that wording is part of the measured setup, and an ablation is open.
 - Generated workspaces are re-printed with `ast.unparse`, whose formatting can
   differ slightly between Python versions: a seed gives the same bugs and tests
   everywhere, but the exact text is reproducible per Python version.

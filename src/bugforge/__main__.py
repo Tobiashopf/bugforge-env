@@ -64,7 +64,7 @@ def _default_out(provider: str, model: str) -> Path:
 def cmd_calibrate(args) -> None:
     from . import experiments
     from .agents.llm import Budget, make_client
-    client = make_client(args.provider, args.model)
+    client = make_client(args.provider, args.model, args.request_timeout)
     grid = ([DIFFICULTIES[n] for n in DIFFICULTIES] if args.named else experiments.GRID)
     out = Path(args.out) if args.out else _default_out(client.provider, client.model)
     records = experiments.run_grid(client, out, grid, list(range(args.seeds)),
@@ -73,6 +73,18 @@ def cmd_calibrate(args) -> None:
     report_path = out.with_name(out.stem + "_report.md")
     report_path.write_text(experiments.report(records), encoding="utf-8")
     print(f"\nreport written to {report_path}")
+
+
+def cmd_enrich(args) -> None:
+    import json
+
+    from . import experiments
+    path = Path(args.file)
+    records = experiments.load_records(path)
+    grid = experiments.GRID + list(DIFFICULTIES.values())
+    n = experiments.enrich(records, grid)
+    path.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
+    print(f"added bug details to {n} of {len(records)} records")
 
 
 def cmd_report(args) -> None:
@@ -106,11 +118,16 @@ def main(argv=None) -> None:
     c.add_argument("--sandbox", default=None, choices=["local", "docker"],
                    help="where model-written code runs (default: $BUGFORGE_SANDBOX or local)")
     c.add_argument("--max-steps", type=int, default=30)
+    c.add_argument("--request-timeout", type=float, default=None,
+                   help="seconds per model call (default: 1800 for ollama, 120 for anthropic)")
     c.add_argument("--max-tokens", type=int, default=0,
                    help="stop the sweep after this many tokens in total (0 = no limit)")
     c.add_argument("--named", action="store_true", help="use easy/medium/hard instead of the grid")
     c.add_argument("--out", default=None, help="JSONL file (default: runs/<provider>_<model>.jsonl)")
     c.set_defaults(fn=cmd_calibrate)
+    e = sub.add_parser("enrich", help="add bug details to runs recorded before they were logged")
+    e.add_argument("file")
+    e.set_defaults(fn=cmd_enrich)
     r = sub.add_parser("report", help="calibration and failure report from JSONL runs")
     r.add_argument("files", nargs="+")
     r.add_argument("--write", action="store_true", help="also save <file>_report.md")

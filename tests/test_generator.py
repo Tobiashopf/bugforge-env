@@ -44,3 +44,17 @@ def test_bugged_modules_differ_from_solution():
 def test_unknown_difficulty_raises():
     with pytest.raises(ValueError):
         generate(0, "impossible")
+
+
+def test_operator_knob_restricts_bug_types():
+    from bugforge.generator import custom
+    diff = custom(3, 2, 0.4, operators=("arith",))
+    assert diff.name.endswith("-arith")
+    for seed in range(3):
+        assert {b.operator for b in generate(seed, diff).bugs} == {"arith"}
+
+
+def test_unknown_operator_raises():
+    from bugforge.generator import custom
+    with pytest.raises(ValueError):
+        custom(1, 1, 0.6, operators=("teleport",))

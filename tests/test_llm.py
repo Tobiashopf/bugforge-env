@@ -202,3 +202,85 @@ def test_ollama_over_real_http(monkeypatch):
         server.shutdown()
     assert res["reward"] == 1.0
     assert received[0]["model"] == "qwen2.5-coder:3b" and received[1]["messages"][-1]["role"] == "tool"
+
+
+def test_calls_written_as_text_are_recovered():
+    text = ('I will look first.\n```json\n{"name": "read_file", "arguments": {"path": "a.py"}}\n```'
+            '\n<tool_call>{"name": "run_tests", "arguments": "{}"}</tool_call>'
+            ' and {"name": "rm", "arguments": {}} and {"x": 1}')
+    calls = llm.calls_from_text(text, 2)
+    assert [(c.name, c.args) for c in calls] == [("read_file", {"path": "a.py"}),
+                                                 ("run_tests", {})]
+
+
+def test_agent_uses_text_calls_like_qwen_does():
+    env = BugForgeEnv("easy")
+    env.reset(0)
+    task = env.task
+    script = [json.dumps({"name": "write_file", "arguments": {"path": f, "content": s}})
+              for f, s in task.solution.items()] + ['{"name": "submit", "arguments": {}}']
+    agent = LLMAgent(FakeClient(script))
+    res = run_episode(env, agent, 0, task=task)
+    assert res["reward"] == 1.0 and agent.text_calls == len(script)
+
+
+class RecordingClient(FakeClient):
+    """Like FakeClient, but builds the real Ollama payload each turn, as a server would see it."""
+
+    def complete(self, system, transcript, turn):
+        self.payloads = getattr(self, "payloads", [])
+        self.payloads.append(OllamaClient().payload(system, transcript))
+        return super().complete(system, transcript, turn)
+
+
+@pytest.mark.parametrize("as_text", [False, True])
+def test_history_sent_to_the_model_keeps_every_tool_call(as_text):
+    """Regression: the queue once aliased the transcript, so executed calls vanished
+    from the history and the model saw its own turns as empty."""
+    env = BugForgeEnv("easy")
+    env.reset(0)
+    steps = [[("list_files", {})], [("run_tests", {})], [("submit", {})]]
+    script = ([json.dumps({"name": s[0][0], "arguments": s[0][1]}) for s in steps]
+              if as_text else steps)
+    client = RecordingClient(script)
+    agent = LLMAgent(client)
+    run_episode(env, agent, 0, task=env.task)
+    last = client.payloads[-1]["messages"]
+    assistant = [m for m in last if m["role"] == "assistant"]
+    assert [m["tool_calls"][0]["function"]["name"] for m in assistant] == ["list_files",
+                                                                          "run_tests"]
+    assert [m["tool_name"] for m in last if m["role"] == "tool"] == ["list_files", "run_tests"]
+    for t in agent.transcript_json():
+        if t["role"] == "assistant":
+            assert t["calls"], "an assistant turn lost its tool calls"
+
+
+def test_old_tool_outputs_are_clipped_in_what_the_model_sees():
+    agent = LLMAgent(FakeClient([]), keep_recent_tool_turns=1, clip_old_outputs=10)
+    agent.reset("task")
+    c1, c2 = ToolCall("a", "read_file", {"path": "x.py"}), ToolCall("b", "run_tests", {})
+    agent.transcript += [
+        {"role": "assistant", "text": "", "calls": [c1]},
+        {"role": "tool", "results": [(c1, "x" * 100)]},
+        {"role": "assistant", "text": "", "calls": [c2]},
+        {"role": "tool", "results": [(c2, "y" * 100)]},
+    ]
+    view = agent.view()
+    old, recent = view[2]["results"][0][1], view[4]["results"][0][1]
+    assert old.startswith("x" * 10) and "90 more characters" in old
+    assert recent == "y" * 100
+    assert agent.transcript[2]["results"][0][1] == "x" * 100  # full record kept
+
+
+def test_timeouts_are_retried_once_then_reported(monkeypatch):
+    calls = {"n": 0}
+
+    def slow(url, payload, headers, timeout):
+        calls["n"] += 1
+        raise TimeoutError("timed out")
+
+    monkeypatch.setattr(llm, "_post", slow)
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    with pytest.raises(llm.ModelServerError, match="timed out"):
+        OllamaClient().complete("sys", [{"role": "user", "text": "x"}], 1)
+    assert calls["n"] == 2
