@@ -83,6 +83,24 @@ class DockerRunner:
                 cmd += ["-e", f"{key}={env[key]}"]
         return cmd + [self.image, "python", "-m", "pytest", *args]
 
+    def worker_command(self, directory: Path, module: str, name: str) -> list[str]:
+        """Mount only candidate sources, never the trusted grading directory."""
+        cmd = [self.docker, "run", "--rm", "-i", "--name", name,
+               "--network", "none", "--read-only", "--tmpfs", "/tmp:rw,size=64m",
+               "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+               "--memory", self.memory, "--cpus", self.cpus, "--pids-limit", str(self.pids),
+               "-v", f"{Path(directory).resolve()}:/work:ro", "-w", "/work",
+               "--user", "65534:65534", "-e", "PYTHONDONTWRITEBYTECODE=1"]
+        return cmd + [self.image, "python", "-u", "_bf_worker.py", module]
+
+    def remove_worker(self, name: str) -> None:
+        try:
+            _run([self.docker, "rm", "-f", name], None, None, 15)
+        except OSError:
+            # The daemon or executable may be unavailable. Never turn an invalid
+            # evaluation into a successful one during cleanup.
+            pass
+
     def pytest(self, directory: Path, args: list[str], timeout: float,
                env: dict[str, str]) -> Result | None:
         name = f"bugforge-{uuid.uuid4().hex[:12]}"

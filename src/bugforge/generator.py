@@ -39,6 +39,17 @@ DIFFICULTIES = {
 }
 
 
+REPOSITORY_DIFFICULTY = Difficulty("repository-checkout", 3, 2, 0.4, True)
+LEDGER_DIFFICULTY = Difficulty("repository-ledger", 3, 2, 0.4, True)
+NUMERICAL_DIFFICULTY = Difficulty("repository-numerical", 3, 2, 0.4, True)
+API_DIFFICULTY = Difficulty("repository-api", 3, 2, 0.4, True)
+SCHEDULER_DIFFICULTY = Difficulty("repository-scheduler", 3, 2, 0.4, True)
+RECONCILIATION_DIFFICULTY = Difficulty("repository-reconciliation", 3, 2, 0.4, True)
+REPOSITORY_DIFFICULTIES = {d.name: d for d in (REPOSITORY_DIFFICULTY, LEDGER_DIFFICULTY,
+                                                NUMERICAL_DIFFICULTY, API_DIFFICULTY,
+                                                SCHEDULER_DIFFICULTY, RECONCILIATION_DIFFICULTY)}
+
+
 @dataclass
 class Bug:
     file: str
@@ -60,7 +71,11 @@ class Task:
 
     @property
     def module_files(self) -> list[str]:
-        return [f"{b}.py" for b in self.bases]
+        return list(self.solution)
+
+    @property
+    def project_modules(self) -> frozenset[str]:
+        return frozenset(f[:-3] for b in self.load_bases() if b.dependencies for f in b.sources)
 
     def load_bases(self) -> list[base_mod.BaseTask]:
         return [base_mod.load(b) for b in self.bases]
@@ -141,7 +156,8 @@ def _draw(rng: random.Random, diff: Difficulty, names: list[str]) -> Task | None
 def _visible_fails(task: Task) -> bool:
     """Run only the visible tests on the bugged modules (what the agent will see)."""
     from .sandbox import Workspace
-    with Workspace(task.workspace, task.module_files) as ws:
+    with Workspace(task.workspace, task.module_files,
+                   project_modules=task.project_modules) as ws:
         return not ws.run_tests().all_passed
 
 
@@ -171,10 +187,30 @@ def generate(seed: int, difficulty: str | Difficulty = "easy", *, check: bool = 
              max_attempts: int = 50) -> Task:
     if isinstance(difficulty, Difficulty):
         diff = difficulty
+    elif difficulty in REPOSITORY_DIFFICULTIES:
+        diff = REPOSITORY_DIFFICULTIES[difficulty]
     elif difficulty in DIFFICULTIES:
         diff = DIFFICULTIES[difficulty]
     else:
-        raise ValueError(f"difficulty must be one of {sorted(DIFFICULTIES)} or a Difficulty")
+        raise ValueError(f"difficulty must be one of {sorted(DIFFICULTIES | REPOSITORY_DIFFICULTIES)} or a Difficulty")
+    if diff.name in REPOSITORY_DIFFICULTIES:
+        if diff != REPOSITORY_DIFFICULTIES[diff.name]:
+            raise ValueError(f"{diff.name} has a fixed configuration")
+        from .repository import (
+            generate_api,
+            generate_checkout,
+            generate_ledger,
+            generate_numerical,
+            generate_reconciliation,
+            generate_scheduler,
+        )
+        factory = {REPOSITORY_DIFFICULTY.name: generate_checkout,
+                   LEDGER_DIFFICULTY.name: generate_ledger,
+                   NUMERICAL_DIFFICULTY.name: generate_numerical,
+                   API_DIFFICULTY.name: generate_api,
+                   SCHEDULER_DIFFICULTY.name: generate_scheduler,
+                   RECONCILIATION_DIFFICULTY.name: generate_reconciliation}[diff.name]
+        return factory(seed, check=check)
     names = base_mod.available()
     if diff.n_files > len(names):
         raise ValueError(f"{diff.name} needs {diff.n_files} base tasks, found {len(names)}")
@@ -188,11 +224,12 @@ def generate(seed: int, difficulty: str | Difficulty = "easy", *, check: bool = 
             return task
         bases = task.load_bases()
         bugged = {f: task.workspace[f] for f in task.module_files}
-        if verify(bugged, bases).solved:
-            continue  # bugs masked each other
+        baseline = verify(bugged, bases, fuzz_seed=seed)
+        if not baseline.valid or baseline.solved:
+            continue  # invalid grading run or bugs masked each other
         if not _visible_fails(task):
             continue
-        if not verify(task.solution, bases).solved:
+        if not verify(task.solution, bases, fuzz_seed=seed).solved:
             raise RuntimeError("reference solution fails its own hidden tests")
         return task
     raise RuntimeError(f"no valid task after {max_attempts} draws (seed={seed})")

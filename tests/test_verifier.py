@@ -58,3 +58,50 @@ def test_module_level_skip_without_policy_still_fails(no_policy):
     src = "import pytest\npytest.skip('bye', allow_module_level=True)\n" + INV.source
     res = verify({INV.module_file: src}, [INV])
     assert not res.solved
+
+
+@pytest.mark.parametrize("passed,total,expected", [(3, 2, 2), (2, 1, 2), (1, 3, 2),
+                                                  (-1, 2, 2), (0, 0, 0)])
+def test_invalid_counts_earn_no_reward(passed, total, expected):
+    res = verifier.VerifyResult(passed, total, expected)
+    assert not res.solved and res.pass_fraction == 0.0
+
+
+def test_valid_partial_reward():
+    res = verifier.VerifyResult(2, 3, 3)
+    assert not res.solved and res.pass_fraction == 2 / 3
+
+
+def test_report_flag_invalidates_even_full_pass():
+    res = verifier.VerifyResult(3, 3, 3, report_valid=False)
+    assert not res.solved and res.pass_fraction == 0.0
+
+
+@pytest.mark.parametrize("body", [
+    '<testsuite tests="wrong"><testcase classname="x" name="y"/></testsuite>',
+    '<testsuite tests="2"><testcase classname="x" name="y"/></testsuite>',
+    ('<testsuite tests="2"><testcase classname="x" name="y"/>'
+    '<testcase classname="x" name="y"/></testsuite>'),
+    '<testsuite tests="1" failures="1"><testcase classname="x" name="y"/></testsuite>',
+    '<other><testcase classname="x" name="y"/></other>',
+    '<broken',
+])
+def test_reject_malformed_junit(tmp_path, body):
+    report = tmp_path / "report.xml"
+    report.write_text(body)
+    assert verifier.parse_junit(report) == (0, 0, 0, [])
+
+
+def test_nonzero_exit_with_all_passes_is_invalid(monkeypatch):
+    from bugforge.runner import Result
+
+    def fake_run(directory, *args):
+        report = directory / "report.xml"
+        count = verifier.expected_count([INV])
+        cases = "".join(f'<testcase classname="x" name="t{i}"/>' for i in range(count))
+        report.write_text(f'<testsuite tests="{count}">{cases}</testsuite>')
+        return Result(2, "", ""), report
+
+    monkeypatch.setattr(verifier, "run_pytest", fake_run)
+    res = verify({INV.module_file: INV.source}, [INV])
+    assert not res.solved and res.pass_fraction == 0.0 and not res.report_valid

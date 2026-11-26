@@ -84,12 +84,12 @@ def test_run_grid_writes_resumable_jsonl(tmp_path, monkeypatch):
     monkeypatch.setattr(experiments, "generate", tracking_generate)
     grid = [custom(1, 1, 0.6), custom(3, 2, 0.4)]
     out = tmp_path / "runs.jsonl"
-    records = run_grid(SolveEasyClient(), out, grid, [0, 1], log=lambda *a: None)
+    records = run_grid(SolveEasyClient(), out, grid, [0, 1], sandbox="local", log=lambda *a: None)
     assert len(records) == 4
     by = {(r["difficulty"], r["seed"]): r["solved"] for r in records}
     assert by[("f1b1v60e", 0)] and not by[("f3b2v40e", 0)]
     assert records[0]["transcript"] and records[0]["input_tokens"] == 50
-    again = run_grid(SolveEasyClient(), out, grid, [0, 1], log=lambda *a: None)
+    again = run_grid(SolveEasyClient(), out, grid, [0, 1], sandbox="local", log=lambda *a: None)
     assert len(again) == 4  # nothing re-run
 
     text = report(again)
@@ -129,16 +129,16 @@ def test_run_grid_skips_server_errors_and_retries_on_rerun(tmp_path):
     out = tmp_path / "r.jsonl"
     grid = [custom(1, 1, 0.6)]
     log = []
-    records = run_grid(BrokenClient(fail_first=1), out, grid, [0, 1], log=log.append)
+    records = run_grid(BrokenClient(fail_first=1), out, grid, [0, 1], sandbox="local", log=log.append)
     assert len(records) == 1 and any("skipped" in m for m in log)
-    records = run_grid(BrokenClient(fail_first=0), out, grid, [0, 1], log=log.append)
+    records = run_grid(BrokenClient(fail_first=0), out, grid, [0, 1], sandbox="local", log=log.append)
     assert len(records) == 2
 
 
 def test_run_grid_stops_when_the_server_is_down(tmp_path):
     log = []
     records = run_grid(BrokenClient(fail_first=99), tmp_path / "r.jsonl", [custom(1, 1, 0.6)],
-                       [0, 1, 2, 3, 4], log=log.append)
+                       [0, 1, 2, 3, 4], sandbox="local", log=log.append)
     assert records == [] and any("3 episodes in a row" in m for m in log)
 
 
@@ -163,7 +163,7 @@ def test_enrich_restores_bug_details(tmp_path, monkeypatch):
 
     monkeypatch.setattr(experiments, "generate", tracking_generate)
     grid = [custom(1, 1, 0.6), custom(3, 2, 0.4)]
-    records = run_grid(SolveEasyClient(), tmp_path / "r.jsonl", grid, [0], log=lambda *a: None)
+    records = run_grid(SolveEasyClient(), tmp_path / "r.jsonl", grid, [0], sandbox="local", log=lambda *a: None)
     truth = {(r["difficulty"], r["seed"]): r["bugs"] for r in records}
     for r in records:
         del r["bugs"]
@@ -171,3 +171,113 @@ def test_enrich_restores_bug_details(tmp_path, monkeypatch):
     for r in records:
         assert r["bugs"] == truth[(r["difficulty"], r["seed"])] and r["bugs_reconstructed"]
     assert "Pass rate by injected bug type" in report(records)
+
+
+def test_default_calibration_fails_closed_without_docker(tmp_path, monkeypatch):
+    import pytest
+
+    from bugforge.runner import DockerRunner
+
+    monkeypatch.setattr(DockerRunner, "available", staticmethod(lambda: False))
+    out = tmp_path / "runs.jsonl"
+    with pytest.raises(RuntimeError, match="Docker sandbox unavailable"):
+        run_grid(BrokenClient(0), out, [custom(1, 1, 0.6)], [0])
+    assert not out.exists()
+
+
+def test_provenance_differentiates_settings():
+    from bugforge.agents.llm import LLMAgent
+    from bugforge.provenance import config, fingerprint, manifest
+
+    client = BrokenClient(0)
+    a = manifest(client, LLMAgent(client), 'local', 30)
+    b = manifest(client, LLMAgent(client), 'local', 31)
+    assert fingerprint(a) != fingerprint(b)
+    assert fingerprint(a) == fingerprint(manifest(client, LLMAgent(client), 'local', 30))
+    assert fingerprint(a) != fingerprint(manifest(client, LLMAgent(client), 'local', 30, 'v2'))
+    assert fingerprint(config(custom(1, 1, .601))) != fingerprint(config(custom(1, 1, .602)))
+
+
+def test_resume_refuses_incompatible_and_legacy(tmp_path):
+    import json
+
+    import pytest
+
+    from bugforge.agents.llm import LLMAgent
+    from bugforge.provenance import config, fingerprint, manifest
+
+    out = tmp_path / 'runs.jsonl'
+    client = BrokenClient(0)
+    diff = custom(1, 1, .6)
+    m = manifest(client, LLMAgent(client), 'local', 30)
+    row = {"provider": client.provider, "model": client.model, "sandbox": 'local',
+               "experiment_id": fingerprint(m), "manifest": m, "difficulty": diff.name,
+               "config": config(diff), "seed": 0}
+    out.write_text(json.dumps(row))
+    before = out.read_bytes()
+    assert run_grid(client, out, [diff], [0], sandbox='local') == [row]
+    with pytest.raises(ValueError, match='configuration changed'):
+        run_grid(client, out, [diff], [0], sandbox='local', max_steps=31)
+    assert out.read_bytes() == before
+    out.write_text(json.dumps({'model': 'old'}))
+    with pytest.raises(ValueError, match='legacy'):
+        run_grid(client, out, [diff], [0], sandbox='local')
+    assert out.read_text() == json.dumps({'model': 'old'})
+    out.write_text('{broken')
+    with pytest.raises(ValueError, match='invalid JSONL'):
+        run_grid(client, out, [diff], [0], sandbox='local')
+    assert out.read_text() == '{broken'
+
+
+def test_reports_separate_and_deduplicate():
+    import pytest
+
+    from bugforge.agents.llm import LLMAgent
+    from bugforge.provenance import config, fingerprint, manifest
+
+    client = BrokenClient(0)
+    diff = custom(1, 1, .6)
+    def row(steps):
+        m = manifest(client, LLMAgent(client), 'local', steps)
+        return dict(rec(last_visible_pass=False), provider=client.provider, model=client.model,
+                    sandbox='local', experiment_id=fingerprint(m), manifest=m,
+                    difficulty=diff.name, config=config(diff), seed=0, solved=False,
+                    steps=3, tool_errors=0, tests_before_edit=True, input_tokens=1,
+                    output_tokens=1, seconds=1.0)
+    a, b = row(30), row(31)
+    text = report([a, a, b])
+    assert text.count('1 episodes, 0 solved') == 2
+    assert text.count('## Difficulty') == 0
+    with pytest.raises(ValueError, match='conflicting duplicate'):
+        report([a, dict(a, solved=True)])
+    with pytest.raises(ValueError, match='invalid experiment fingerprint'):
+        report([dict(a, experiment_id='bad')])
+    legacy = {k: v for k, v in a.items() if k not in ('manifest', 'experiment_id')}
+    assert 'provenance incomplete' in report([a, legacy])
+
+
+def test_resume_append_and_config_collision(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from bugforge.provenance import fingerprint
+
+    monkeypatch.setattr(experiments, 'generate', lambda seed, diff: SimpleNamespace(
+        workspace={'x.py': str(seed)}, solution={'x.py': 'correct'}))
+    def episode(env, agent, seed, task):
+        agent.turns = agent.text_calls = agent.input_tokens = agent.output_tokens = 0
+        return {"reward": 0, "solved": False, "steps": 1, "test_runs": 0, "end": 'submitted',
+                    "edited": [], "bugs": [], "bases": [], "tool_errors": 0, "last_visible_pass": None,
+                    "tests_before_edit": False, "violations": {}, "failed": [], "sandbox": 'local'}
+    monkeypatch.setattr(experiments, 'run_episode', episode)
+    out = tmp_path / 'r.jsonl'
+    a, b = custom(1, 1, .601), custom(1, 1, .602)
+    assert a.name == b.name
+    rows = run_grid(BrokenClient(0), out, [a], [0, 0], sandbox='local')
+    assert len(rows) == 1
+    out.write_bytes(out.read_bytes().rstrip(b'\n'))
+    rows = run_grid(BrokenClient(0), out, [a, b], [0, 1], sandbox='local')
+    assert len(rows) == 4
+    assert len({(r['seed'], fingerprint(r['config'])) for r in rows}) == 4
+    assert len({r['experiment_id'] for r in rows}) == 1
+    assert len(run_grid(BrokenClient(0), out, [a, b], [0, 1], sandbox='local')) == 4
+    assert report(rows).count('`' + a.name + '@') == 2

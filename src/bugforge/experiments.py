@@ -22,9 +22,11 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from .agents import run_episode
-from .agents.llm import NUDGE, Budget, BudgetExceeded, LLMAgent, ModelServerError
+from .agents.llm import NUDGE, SYSTEM_PROMPT, Budget, BudgetExceeded, LLMAgent, ModelServerError
 from .env import BugForgeEnv
 from .generator import Difficulty, custom, generate
+from .provenance import config, fingerprint, manifest
+from .runner import DockerRunner
 
 GRID = [
     custom(1, 1, 0.6), custom(1, 1, 0.25),
@@ -36,37 +38,90 @@ FEATURES = ["n_bugs", "n_files", "visible_frac"]
 
 # --------------------------------------------------------------------------- runs
 def _key(rec: dict) -> tuple:
-    return rec["model"], rec["difficulty"], rec["seed"]
+    return rec["experiment_id"], rec["difficulty"], fingerprint(rec["config"]), rec["seed"]
 
 
 def load_records(path: Path) -> list[dict]:
+    """Do not silently ignore corrupt or truncated records; preserve the input file."""
     if not path.exists():
         return []
     out = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.strip():
             try:
-                out.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue  # a line cut short by an interrupted run
+                rec = json.loads(line)
+                if not isinstance(rec, dict):
+                    raise ValueError("record must be an object")  # noqa: TRY004
+                out.append(rec)
+            except ValueError as exc:
+                raise ValueError(f"{path}:{i}: invalid JSONL; repair a copy before resuming") from exc
     return out
+
+
+def _validate_identity(rec: dict) -> None:
+    m = rec.get("manifest")
+    if not isinstance(m, dict) or rec.get("experiment_id") != fingerprint(m):
+        raise ValueError("invalid experiment fingerprint")
+    for key in ("provider", "model"):
+        if rec.get(key) != m.get(key):
+            raise ValueError(f"record {key} does not match manifest")
+    if rec.get("sandbox") != m["runner"]["mode"]:
+        raise ValueError("record sandbox does not match manifest")
+
+
+def _unique(records: list[dict]) -> list[dict]:
+    seen = {}
+    for r in records:
+        _validate_identity(r)
+        key = _key(r)
+        if key in seen and seen[key] != r:
+            raise ValueError("conflicting duplicate episode")
+        seen[key] = r
+    return list(seen.values())
 
 
 def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
              sandbox: str | None = None, max_steps: int = 30, budget: Budget | None = None,
-             log=print) -> list[dict]:
+             log=print, model_revision: str | None = None, system: str = SYSTEM_PROMPT) -> list[dict]:
+    # External model code must not silently fall back to the host interpreter.
+    # Explicit local mode is reserved for controlled development and fake clients.
+    sandbox = sandbox or "docker"
+    if sandbox == "docker" and not DockerRunner.available():
+        raise RuntimeError("Docker sandbox unavailable; build with "
+                           "docker build -t bugforge-sandbox docker")
+    if sandbox not in {"docker", "local"}:
+        raise ValueError(f"unknown sandbox: {sandbox}")
+    if sandbox == "local":
+        log("WARNING: local mode is not a security sandbox; use only trusted code")
     out.parent.mkdir(parents=True, exist_ok=True)
     budget = budget or Budget()
-    done = {_key(r) for r in load_records(out)}
+    provenance = manifest(client, LLMAgent(client, budget=budget, system=system), sandbox,
+                          max_steps, model_revision)
+    experiment_id = fingerprint(provenance)
+    previous = load_records(out)
+    if any("experiment_id" not in r for r in previous):
+        raise ValueError("legacy records lack provenance; choose a new --out file")
+    previous = _unique(previous)
+    if any(r["experiment_id"] != experiment_id for r in previous):
+        raise ValueError("experiment configuration changed; choose a new --out file")
+    done = {_key(r) for r in previous}
     model = getattr(client, "model", "?")
-    jobs = [(d, s) for s in seeds for d in grid if (model, d.name, s) not in done]
-    log(f"{len(jobs)} episodes to run ({len(done)} already in {out})")
+    jobs = []
+    for seed in dict.fromkeys(seeds):
+        for diff in grid:
+            key = (experiment_id, diff.name, fingerprint(config(diff)), seed)
+            if key not in done:
+                jobs.append((diff, seed))
+                done.add(key)
+    log(f"{len(jobs)} episodes to run ({len(previous)} already in {out})")
     t_start = time.time()
     failures_in_a_row = 0
     skipped = 0
     for i, (diff, seed) in enumerate(jobs, 1):
         env = BugForgeEnv(diff, max_steps=max_steps, sandbox=sandbox)
-        agent = LLMAgent(client, budget=budget)
+        if sandbox == "docker":
+            env.runner.image = provenance["runner"]["image_id"]
+        agent = LLMAgent(client, budget=budget, system=system)
         t0 = time.time()
         try:
             task = generate(seed, diff)
@@ -88,9 +143,10 @@ def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
         failures_in_a_row = 0
         rec = {
             "provider": client.provider, "model": model, "difficulty": diff.name,
-            "config": {"n_files": diff.n_files, "n_bugs": diff.n_bugs,
-                       "visible_frac": diff.visible_frac,
-                       "each_bug_visible": diff.each_bug_visible},
+            "experiment_id": experiment_id, "manifest": provenance,
+            "config": config(diff),
+            "task_sha256": fingerprint({"workspace": task.workspace, "solution": task.solution}),
+            "sweep_budget_max_tokens": budget.max_tokens,
             "seed": seed, "reward": res["reward"], "solved": res["solved"],
             "steps": res["steps"], "test_runs": res["test_runs"], "end": res["end"],
             "turns": agent.turns, "text_calls": agent.text_calls,
@@ -101,7 +157,7 @@ def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
                       "description": b["description"]} for b in res["bugs"]],
             "stalls": sum(1 for t in agent.transcript
                           if t["role"] == "user" and t["text"] == NUDGE),
-            "module_files": [f"{b}.py" for b in res["bases"]],
+            "module_files": list(task.solution),
             "tool_errors": res["tool_errors"], "last_visible_pass": res["last_visible_pass"],
             "tests_before_edit": res["tests_before_edit"],
             "violations": [m for ms in res["violations"].values() for m in ms][:5],
@@ -111,15 +167,21 @@ def run_grid(client, out: Path, grid: list[Difficulty], seeds: list[int], *,
                       "clip_old_outputs": agent.clip_old_outputs},
             "transcript": agent.transcript_json(),
         }
+        # A valid final JSON object may lack a trailing newline after an interrupted write.
+        separator = ""
+        if out.exists() and out.stat().st_size:
+            with out.open("rb") as existing:
+                existing.seek(-1, 2)
+                separator = "" if existing.read(1) == b"\n" else "\n"
         with out.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(rec) + "\n")
+            f.write(separator + json.dumps(rec, allow_nan=False) + "\n")
         elapsed = time.time() - t_start
         eta = elapsed / i * (len(jobs) - i)
         log(f"[{i}/{len(jobs)}] {diff.name:<10} seed {seed:<3} reward {res['reward']:.0f}  "
             f"{rec['seconds']:>6.1f}s  tokens {budget.used:,}  eta {eta / 60:.0f} min")
     if skipped:
         log(f"{skipped} episode(s) skipped after model-server errors; rerun to fill them in")
-    return load_records(out)
+    return _unique(load_records(out))
 
 
 # ------------------------------------------------------------------ statistics
@@ -289,6 +351,28 @@ def stuck_in_loop(r: dict, times: int = 3) -> bool:
 
 
 def report(records: list[dict], targets=(0.8, 0.5, 0.2)) -> str:
+    """Fit separate models for each verified experiment or legacy metadata group."""
+    modern = _unique([r for r in records if "experiment_id" in r])
+    legacy = [r for r in records if "experiment_id" not in r]
+    groups: dict[tuple, list[dict]] = defaultdict(list)
+    for r in modern:
+        groups[("verified", r["experiment_id"])].append(r)
+    for r in legacy:
+        identity = {k: r.get(k) for k in ("provider", "model", "sandbox", "agent")}
+        identity["source"] = r.get("_legacy_source")
+        groups[("legacy", fingerprint(identity))].append(r)
+    if not groups:
+        return "No episodes recorded yet.\n"
+    sections = []
+    for (kind, ident), rows in sorted(groups.items()):
+        warning = ("Legacy records: provenance incomplete; comparability is not established."
+                   if kind == "legacy" else "Configuration fingerprint verified (not outcome authenticity).")
+        sections.append(f"# Experiment {ident[:16]} ({kind})\n\n{warning}\n\n"
+                        + _report_group(rows, targets))
+    return "\n---\n\n".join(sections)
+
+
+def _report_group(records: list[dict], targets) -> str:
     if not records:
         return "No episodes recorded yet.\n"
     models = sorted({r["model"] for r in records})
@@ -301,8 +385,14 @@ def report(records: list[dict], targets=(0.8, 0.5, 0.2)) -> str:
                f"{toks:,} tokens, {secs / 3600:.1f} h of wall clock."), ""]
 
     by_cfg: dict[str, list[dict]] = defaultdict(list)
+    names = defaultdict(set)
     for r in records:
-        by_cfg[r["difficulty"]].append(r)
+        names[r["difficulty"]].add(fingerprint(r["config"]))
+    for r in records:
+        name = r["difficulty"]
+        if len(names[name]) > 1:
+            name += "@" + fingerprint(r["config"])[:12]
+        by_cfg[name].append(r)
     xs = [features(r["config"]) for r in records]
     ys = [int(r["solved"]) for r in records]
     fitted = None

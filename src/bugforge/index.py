@@ -4,7 +4,7 @@ Run once after editing a base task::
 
     python -m bugforge.index
 
-It writes ``tasks/base/<name>/kill_matrix.json`` and prints each module's
+It writes ``src/bugforge/task_data/<name>/kill_matrix.json`` and prints each module's
 *mutation score* -- the share of single-site mutants the hidden tests detect.
 Surviving mutants are either equivalent (no observable change) or a gap in the
 tests; both are excluded from task generation, and the list is printed so the

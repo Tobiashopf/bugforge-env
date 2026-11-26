@@ -8,13 +8,14 @@
   same static policy as grading. Module files are policy-checked and copied,
   with the *original* visible tests, into a fresh directory; edited or added
   test files are ignored. The policy forbids imports outside a pure-stdlib
-  allow-list, ``eval``/``getattr``/dunder access and import-time calls, which
-  keeps a model from reaching the filesystem, network or processes.
+  allow-list, ``eval``/``getattr``/dunder access and import-time calls, but
+  is not a security boundary. Use only with trusted code.
 """
 from __future__ import annotations
 
 import os
 import shutil
+import stat
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -44,11 +45,12 @@ class TestRun:
 
 class Workspace:
     def __init__(self, files: dict[str, str], module_files: list[str] | None = None,
-                 runner=None):
+                 runner=None, *, project_modules: frozenset[str] = frozenset()):
         self._initial = dict(files)
         self.module_files = module_files or sorted(
             f for f in files if f.endswith(".py") and not f.startswith("test_"))
         self.runner = runner or LocalRunner()
+        self.project_modules = project_modules
         self.root: Path | None = None
 
     def __enter__(self):
@@ -72,8 +74,21 @@ class Workspace:
         rel = PurePosixPath(name.replace("\\", "/"))
         if rel.is_absolute() or ".." in rel.parts or not rel.parts or ":" in name:
             raise ToolError(f"path '{name}' is outside the workspace")
-        p = self.root.joinpath(*rel.parts)
-        p.parent.mkdir(parents=True, exist_ok=True)
+        # The Docker workspace is writable by the candidate. Never follow
+        # links it leaves behind when the host subsequently accesses files.
+        p = self.root
+        for i, part in enumerate(rel.parts):
+            p = p / part
+            last = i == len(rel.parts) - 1
+            try:
+                mode = p.lstat().st_mode
+            except FileNotFoundError:
+                if not last:
+                    p.mkdir()
+                continue
+            if stat.S_ISLNK(mode) or (last and not stat.S_ISREG(mode)) or (
+                    not last and not stat.S_ISDIR(mode)):
+                raise ToolError(f"path '{name}' is not a regular workspace file")
         return p
 
     # -- tools -------------------------------------------------------------
@@ -81,13 +96,15 @@ class Workspace:
         assert self.root is not None
         return sorted(str(p.relative_to(self.root).as_posix())
                       for p in self.root.rglob("*")
-                      if p.is_file() and "__pycache__" not in p.parts
+                      if not p.is_symlink() and p.is_file() and "__pycache__" not in p.parts
                       and p.name not in {"report.xml", "pytest.ini"})
 
     def read_file(self, name: str) -> str:
         p = self._path(name)
         if not p.is_file():
             raise ToolError(f"no such file: {name}")
+        if p.stat().st_size > MAX_FILE_BYTES:
+            raise ToolError("file too large")
         return p.read_text(encoding="utf-8", errors="replace")
 
     def write_file(self, name: str, content: str) -> None:
@@ -107,7 +124,8 @@ class Workspace:
         if self.runner.isolates_code:
             return self._pytest(self.root, timeout)
 
-        problems = {f: policy.check(self.read_file(f)) for f in self.module_files
+        problems = {f: policy.check(self.read_file(f), project_modules=self.project_modules)
+                    for f in self.module_files
                     if (self.root / f).is_file()}
         problems = {f: p for f, p in problems.items() if p}
         if problems:
@@ -136,7 +154,7 @@ class Workspace:
         if not tests:
             return TestRun(0, 0, "no test files found")
         ini = directory / "pytest.ini"
-        if not ini.exists():
+        if not ini.exists() and not ini.is_symlink():
             ini.write_text("[pytest]\n", encoding="utf-8")
         env = {k: v for k, v in os.environ.items() if k not in {"PYTHONPATH", "PYTEST_ADDOPTS"}}
         env.update(PYTEST_DISABLE_PLUGIN_AUTOLOAD="1", PYTHONDONTWRITEBYTECODE="1",

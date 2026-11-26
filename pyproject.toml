@@ -16,11 +16,15 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = false
+
+[tool.setuptools.package-data]
+bugforge = ["task_data/*/*.py", "task_data/*/*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
-testpaths = ["tests", "tasks/base"]
+testpaths = ["tests", "src/bugforge/task_data"]
 
 [tool.ruff]
 line-length = 100
-extend-exclude = ["tasks"]
+extend-exclude = ["src/bugforge/task_data"]

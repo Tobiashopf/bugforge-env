@@ -3,7 +3,7 @@ import pytest
 from bugforge.agents import OracleAgent, exploits, run_episode
 from bugforge.env import BugForgeEnv
 from bugforge.runner import DockerRunner, get_runner
-from bugforge.sandbox import Workspace
+from bugforge.sandbox import ToolError, Workspace
 
 FILES = {
     "calc.py": "def add(a, b):\n    return a - b\n",
@@ -74,3 +74,31 @@ def test_docker_blocks_network_for_agent_code():
     obs, *_ = env.step({"tool": "run_tests", "args": {}})
     env.close()
     assert "test_net" in obs and "failed" in obs
+
+
+def test_host_tools_reject_workspace_links(tmp_path):
+    outside = tmp_path / 'outside.txt'
+    outside.write_text('untouched', encoding='utf-8')
+    with Workspace(FILES) as ws:
+        link = ws.root / 'link.py'
+        try:
+            link.symlink_to(outside)
+            (ws.root / 'linked_dir').symlink_to(tmp_path, target_is_directory=True)
+        except OSError:
+            pytest.skip('symlink creation unavailable')
+        for name in ('link.py', 'linked_dir/outside.txt'):
+            with pytest.raises(ToolError):
+                ws.read_file(name)
+            with pytest.raises(ToolError):
+                ws.write_file(name, 'changed')
+        assert ws.snapshot(['link.py']) == {}
+        assert 'link.py' not in ws.list_files()
+        assert outside.read_text(encoding='utf-8') == 'untouched'
+
+
+def test_host_tools_reject_large_candidate_file():
+    with Workspace(FILES) as ws:
+        (ws.root / 'calc.py').write_text('x' * 200001, encoding='utf-8')
+        with pytest.raises(ToolError, match='too large'):
+            ws.read_file('calc.py')
+        assert ws.snapshot(['calc.py']) == {}

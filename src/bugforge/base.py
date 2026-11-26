@@ -1,6 +1,6 @@
 """The hand-written base modules that bugs are injected into.
 
-Each base task lives in ``tasks/base/<name>/`` and has three files:
+Each base task lives in ``src/bugforge/task_data/<name>/`` and has three files:
 
 - ``<name>.py``        the correct module (also the reference at grading time)
 - ``test_<name>.py``   unit tests; a random subset is shown to the agent
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import ast
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .mutations import normalize
@@ -20,7 +20,7 @@ def tasks_root() -> Path:
     env = os.environ.get("BUGFORGE_TASKS")
     if env:
         return Path(env)
-    return Path(__file__).resolve().parents[2] / "tasks" / "base"
+    return Path(__file__).resolve().parent / "task_data"
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,12 @@ class BaseTask:
     source: str        # normalized correct module
     tests: str         # unit test file
     fuzz: str          # differential fuzz file
+
+    dependencies: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def sources(self) -> dict[str, str]:
+        return {self.module_file: self.source, **self.dependencies}
 
     @property
     def module_file(self) -> str:
@@ -50,8 +56,16 @@ class BaseTask:
 
 def load(name: str, root: Path | None = None) -> BaseTask:
     d = (root or tasks_root()) / name
+    deps = {}
+    if (d / "dependencies.json").exists():
+        import json
+        for filename in json.loads((d / "dependencies.json").read_text(encoding="utf-8")):
+            if Path(filename).name != filename or not filename.endswith(".py"):
+                raise ValueError("invalid dependency filename")
+            deps[filename] = normalize((d / filename).read_text(encoding="utf-8"))
     return BaseTask(
         name=name,
+        dependencies=deps,
         source=normalize((d / f"{name}.py").read_text(encoding="utf-8")),
         tests=(d / f"test_{name}.py").read_text(encoding="utf-8"),
         fuzz=(d / f"fuzz_{name}.py").read_text(encoding="utf-8"),
@@ -61,7 +75,8 @@ def load(name: str, root: Path | None = None) -> BaseTask:
 def available(root: Path | None = None) -> list[str]:
     r = root or tasks_root()
     return sorted(p.name for p in r.iterdir()
-                  if p.is_dir() and (p / f"{p.name}.py").exists())
+                  if p.is_dir() and (p / f"{p.name}.py").exists()
+                  and not (p / "dependencies.json").exists())
 
 
 def subset_tests(test_source: str, keep: set[str]) -> str:
