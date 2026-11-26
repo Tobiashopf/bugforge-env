@@ -1,0 +1,24 @@
+{
+  "6eeceb1b5e0fe6be456c6752e495b30a09ff79f5e26e5f3205027f925e7b3659": {
+    "model": "qwen2.5-coder:1.5b",
+    "model_digest": "d7372fd828518a4d38b1eb196c673c31a85f2ed302b3d1e406c4c2d1b64a0668",
+    "image_id": "sha256:7b634f6203d57ea6cf2a74156331f1ad5786eb36770502b28f94adad59305b3c",
+    "source_sha256": "5f89e41b372fd0b89aab32c39a47f04d8878223c7629f9468616a7bf92024984",
+    "tasks_sha256": "53641df1006d3702d33be3af48a02cfa4801fd330f55d5f7bb016ecf14563ab6",
+    "system_sha256": "09e3d44c2364e54a22c6e52a308f7ee95cb970761d1df469c643efb622211e20",
+    "context": 16384,
+    "temperature": 0.0,
+    "transport": "text"
+  },
+  "7783e937bd1358a8fb0981f61a1610fbe7d156d67955b2d6ccf78a20d270fde3": {
+    "model": "qwen2.5-coder:1.5b",
+    "model_digest": "d7372fd828518a4d38b1eb196c673c31a85f2ed302b3d1e406c4c2d1b64a0668",
+    "image_id": "sha256:7b634f6203d57ea6cf2a74156331f1ad5786eb36770502b28f94adad59305b3c",
+    "source_sha256": "5f89e41b372fd0b89aab32c39a47f04d8878223c7629f9468616a7bf92024984",
+    "tasks_sha256": "53641df1006d3702d33be3af48a02cfa4801fd330f55d5f7bb016ecf14563ab6",
+    "system_sha256": "beee76bfdd969810c07fe9afd45b4301aa8217bb4341084883235b87e0768b8f",
+    "context": 16384,
+    "temperature": 0.0,
+    "transport": "text"
+  }
+}

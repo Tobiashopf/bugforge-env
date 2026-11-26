@@ -58,3 +58,29 @@ def test_unknown_operator_raises():
     from bugforge.generator import custom
     with pytest.raises(ValueError):
         custom(1, 1, 0.6, operators=("teleport",))
+
+
+def test_generation_validation_uses_episode_fuzz_seed(monkeypatch):
+    from types import SimpleNamespace
+
+    from bugforge import generator
+
+    calls = []
+    def verify(candidates, bases, *, fuzz_seed):
+        calls.append(fuzz_seed)
+        return SimpleNamespace(valid=True, solved=len(calls) % 2 == 0)
+    monkeypatch.setattr(generator, 'verify', verify)
+    monkeypatch.setattr(generator, '_visible_fails', lambda task: True)
+    assert generator.generate(37, 'easy').seed == 37
+    assert calls == [37, 37]
+
+
+def test_invalid_baseline_is_not_a_valid_task(monkeypatch):
+    from types import SimpleNamespace
+
+    from bugforge import generator
+
+    monkeypatch.setattr(generator, 'verify', lambda *a, **kw:
+                        SimpleNamespace(valid=False, solved=False))
+    with pytest.raises(RuntimeError, match='no valid task'):
+        generator.generate(37, 'easy', max_attempts=2)

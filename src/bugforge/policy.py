@@ -1,8 +1,8 @@
 """Static policy for submitted modules: the first line of defense against reward hacking.
 
-The verifier runs the agent's code in the same process as the hidden tests, so
-code that runs at import time could rewrite the test framework, exit the
-process with status 0, or reach the reference implementation. The fixes this
+The legacy local verifier shares a process with hidden tests. Docker final
+grading separates candidate execution from trusted tests, but this filter
+remains useful as defense in depth. The fixes this
 environment asks for never need any of that, so the policy forbids it outright:
 
 - top level may only hold imports, definitions, assignments and a docstring
@@ -12,7 +12,8 @@ environment asks for never need any of that, so the policy forbids it outright:
   default arguments run at import time too);
 - no dynamic-execution or introspection builtins, and no dunder attributes.
 
-A legitimate fix is never blocked by this. Anything it blocks scores zero.
+This is a restrictive filter, not a security boundary; legitimate Python may be
+blocked. Anything it blocks scores zero.
 """
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ _TOP_LEVEL_OK = (ast.Import, ast.ImportFrom, ast.FunctionDef, ast.AsyncFunctionD
                  ast.ClassDef, ast.Assign, ast.AnnAssign)
 
 
-def check(source: str) -> list[str]:
+def check(source: str, *, project_modules: frozenset[str] = frozenset()) -> list[str]:
     """Return a list of violations; empty means the module is acceptable."""
     try:
         tree = ast.parse(source)
@@ -54,10 +55,12 @@ def check(source: str) -> list[str]:
             problems.append(f"line {node.lineno}: call outside a function body not allowed")
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name.split(".")[0] not in ALLOWED_IMPORTS:
+                if (alias.name.split(".")[0] not in ALLOWED_IMPORTS
+                        and alias.name not in project_modules):
                     problems.append(f"line {node.lineno}: import of '{alias.name}' not allowed")
         elif isinstance(node, ast.ImportFrom):
-            if node.level or (node.module or "").split(".")[0] not in ALLOWED_IMPORTS:
+            if node.level or ((node.module or "").split(".")[0] not in ALLOWED_IMPORTS
+                              and node.module not in project_modules):
                 problems.append(f"line {node.lineno}: import from '{node.module}' not allowed")
         elif isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
             problems.append(f"line {node.lineno}: use of '{node.id}' not allowed")

@@ -1,0 +1,525 @@
+{
+ "name": "inventory",
+ "hash": "588aa60e7dccdd21",
+ "tests": [
+  "test_add_sets_quantity",
+  "test_add_existing_sku_accumulates",
+  "test_add_quantity_one_is_allowed",
+  "test_add_zero_quantity_raises",
+  "test_add_negative_quantity_raises",
+  "test_add_zero_price_is_allowed",
+  "test_add_negative_price_raises",
+  "test_add_price_mismatch_raises",
+  "test_failed_add_leaves_stock_unchanged",
+  "test_quantity_unknown_sku_is_zero",
+  "test_remove_partial_decreases_quantity",
+  "test_remove_all_deletes_sku",
+  "test_remove_one_less_than_stock_keeps_one",
+  "test_remove_more_than_stock_raises",
+  "test_remove_zero_raises",
+  "test_remove_unknown_sku_raises_key_error",
+  "test_total_value_below_threshold_no_discount",
+  "test_total_value_exactly_at_threshold_gets_discount",
+  "test_total_value_above_threshold_gets_discount",
+  "test_total_value_sums_all_items",
+  "test_total_value_custom_threshold_and_rate",
+  "test_total_value_rounds_to_two_decimals",
+  "test_total_value_empty_is_zero",
+  "test_by_category_is_case_insensitive_and_sorted",
+  "test_by_category_unknown_is_empty",
+  "test_low_stock_default_limit_is_inclusive",
+  "test_low_stock_orders_by_quantity",
+  "test_low_stock_ties_broken_by_sku"
+ ],
+ "sites": {
+  "negate:17": {
+   "operator": "negate",
+   "line": 11,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_add_existing_sku_accumulates",
+    "test_add_negative_quantity_raises",
+    "test_add_price_mismatch_raises",
+    "test_add_quantity_one_is_allowed",
+    "test_add_sets_quantity",
+    "test_add_zero_price_is_allowed",
+    "test_add_zero_quantity_raises",
+    "test_by_category_is_case_insensitive_and_sorted",
+    "test_by_category_unknown_is_empty",
+    "test_failed_add_leaves_stock_unchanged",
+    "test_low_stock_default_limit_is_inclusive",
+    "test_low_stock_orders_by_quantity",
+    "test_low_stock_ties_broken_by_sku",
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_more_than_stock_raises",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity",
+    "test_remove_zero_raises",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_below_threshold_no_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount",
+    "test_total_value_rounds_to_two_decimals",
+    "test_total_value_sums_all_items"
+   ]
+  },
+  "negate:18": {
+   "operator": "negate",
+   "line": 13,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_add_existing_sku_accumulates",
+    "test_add_negative_price_raises",
+    "test_add_price_mismatch_raises",
+    "test_add_quantity_one_is_allowed",
+    "test_add_sets_quantity",
+    "test_add_zero_price_is_allowed",
+    "test_by_category_is_case_insensitive_and_sorted",
+    "test_by_category_unknown_is_empty",
+    "test_failed_add_leaves_stock_unchanged",
+    "test_low_stock_default_limit_is_inclusive",
+    "test_low_stock_orders_by_quantity",
+    "test_low_stock_ties_broken_by_sku",
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_more_than_stock_raises",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity",
+    "test_remove_zero_raises",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_below_threshold_no_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount",
+    "test_total_value_rounds_to_two_decimals",
+    "test_total_value_sums_all_items"
+   ]
+  },
+  "negate:19": {
+   "operator": "negate",
+   "line": 15,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_add_existing_sku_accumulates",
+    "test_add_price_mismatch_raises",
+    "test_add_quantity_one_is_allowed",
+    "test_add_sets_quantity",
+    "test_add_zero_price_is_allowed",
+    "test_by_category_is_case_insensitive_and_sorted",
+    "test_by_category_unknown_is_empty",
+    "test_failed_add_leaves_stock_unchanged",
+    "test_low_stock_default_limit_is_inclusive",
+    "test_low_stock_orders_by_quantity",
+    "test_low_stock_ties_broken_by_sku",
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_more_than_stock_raises",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity",
+    "test_remove_zero_raises",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_below_threshold_no_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount",
+    "test_total_value_rounds_to_two_decimals",
+    "test_total_value_sums_all_items"
+   ]
+  },
+  "negate:22": {
+   "operator": "negate",
+   "line": 25,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity",
+    "test_remove_unknown_sku_raises_key_error",
+    "test_remove_zero_raises"
+   ]
+  },
+  "negate:23": {
+   "operator": "negate",
+   "line": 27,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_more_than_stock_raises",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity"
+   ]
+  },
+  "negate:25": {
+   "operator": "negate",
+   "line": 30,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_more_than_stock_raises",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity"
+   ]
+  },
+  "negate:26": {
+   "operator": "negate",
+   "line": 32,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity"
+   ]
+  },
+  "negate:29": {
+   "operator": "negate",
+   "line": 39,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_add_existing_sku_accumulates",
+    "test_add_quantity_one_is_allowed",
+    "test_add_sets_quantity",
+    "test_failed_add_leaves_stock_unchanged",
+    "test_quantity_unknown_sku_is_zero",
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity"
+   ]
+  },
+  "negate:35": {
+   "operator": "negate",
+   "line": 48,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_below_threshold_no_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount",
+    "test_total_value_rounds_to_two_decimals",
+    "test_total_value_sums_all_items"
+   ]
+  },
+  "cmp:58": {
+   "operator": "cmp",
+   "line": 11,
+   "description": "LtE -> Lt",
+   "killed_by": [
+    "test_add_zero_quantity_raises",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "noraise:59": {
+   "operator": "noraise",
+   "line": 12,
+   "description": "raise removed",
+   "killed_by": [
+    "test_add_negative_quantity_raises",
+    "test_add_zero_quantity_raises",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "cmp:60": {
+   "operator": "cmp",
+   "line": 13,
+   "description": "Lt -> LtE",
+   "killed_by": [
+    "test_add_zero_price_is_allowed",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "noraise:61": {
+   "operator": "noraise",
+   "line": 14,
+   "description": "raise removed",
+   "killed_by": [
+    "test_add_negative_price_raises",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "negate:64": {
+   "operator": "negate",
+   "line": 17,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_add_existing_sku_accumulates",
+    "test_add_price_mismatch_raises",
+    "test_failed_add_leaves_stock_unchanged",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "arith:65": {
+   "operator": "arith",
+   "line": 19,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_add_existing_sku_accumulates",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "cmp:71": {
+   "operator": "cmp",
+   "line": 25,
+   "description": "LtE -> Lt",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_zero_raises"
+   ]
+  },
+  "noraise:72": {
+   "operator": "noraise",
+   "line": 26,
+   "description": "raise removed",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_zero_raises"
+   ]
+  },
+  "noraise:74": {
+   "operator": "noraise",
+   "line": 28,
+   "description": "raise removed",
+   "killed_by": []
+  },
+  "cmp:77": {
+   "operator": "cmp",
+   "line": 30,
+   "description": "Gt -> GtE",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku"
+   ]
+  },
+  "noraise:78": {
+   "operator": "noraise",
+   "line": 31,
+   "description": "raise removed",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_more_than_stock_raises"
+   ]
+  },
+  "cmp:79": {
+   "operator": "cmp",
+   "line": 32,
+   "description": "Eq -> NotEq",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity"
+   ]
+  },
+  "arith:81": {
+   "operator": "arith",
+   "line": 35,
+   "description": "Sub -> Add",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_one_less_than_stock_keeps_one",
+    "test_remove_partial_decreases_quantity"
+   ]
+  },
+  "const:87": {
+   "operator": "const",
+   "line": 41,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_quantity_unknown_sku_is_zero",
+    "test_random_operation_sequences_match_reference",
+    "test_remove_all_deletes_sku"
+   ]
+  },
+  "const:95": {
+   "operator": "const",
+   "line": 45,
+   "description": "0.0 -> 1.0",
+   "killed_by": [
+    "test_add_zero_price_is_allowed",
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_below_threshold_no_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_empty_is_zero",
+    "test_total_value_exactly_at_threshold_gets_discount",
+    "test_total_value_rounds_to_two_decimals",
+    "test_total_value_sums_all_items"
+   ]
+  },
+  "arith:98": {
+   "operator": "arith",
+   "line": 47,
+   "description": "Add -> Sub",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_below_threshold_no_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount",
+    "test_total_value_rounds_to_two_decimals",
+    "test_total_value_sums_all_items"
+   ]
+  },
+  "cmp:99": {
+   "operator": "cmp",
+   "line": 48,
+   "description": "GtE -> Gt",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount"
+   ]
+  },
+  "negate:111": {
+   "operator": "negate",
+   "line": 57,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_by_category_is_case_insensitive_and_sorted",
+    "test_by_category_unknown_is_empty",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "negate:121": {
+   "operator": "negate",
+   "line": 65,
+   "description": "if-condition negated",
+   "killed_by": [
+    "test_low_stock_default_limit_is_inclusive",
+    "test_low_stock_orders_by_quantity",
+    "test_low_stock_ties_broken_by_sku",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "const:128": {
+   "operator": "const",
+   "line": 11,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_add_price_mismatch_raises",
+    "test_add_quantity_one_is_allowed",
+    "test_low_stock_ties_broken_by_sku",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "const:132": {
+   "operator": "const",
+   "line": 13,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_add_zero_price_is_allowed",
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_rounds_to_two_decimals"
+   ]
+  },
+  "cmp:139": {
+   "operator": "cmp",
+   "line": 17,
+   "description": "NotEq -> Eq",
+   "killed_by": [
+    "test_add_existing_sku_accumulates",
+    "test_add_price_mismatch_raises",
+    "test_failed_add_leaves_stock_unchanged",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "noraise:140": {
+   "operator": "noraise",
+   "line": 18,
+   "description": "raise removed",
+   "killed_by": [
+    "test_add_price_mismatch_raises",
+    "test_failed_add_leaves_stock_unchanged",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "const:148": {
+   "operator": "const",
+   "line": 25,
+   "description": "0 -> 1",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_remove_unknown_sku_raises_key_error"
+   ]
+  },
+  "arith:178": {
+   "operator": "arith",
+   "line": 47,
+   "description": "Mult -> Div",
+   "killed_by": [
+    "test_add_zero_price_is_allowed",
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_below_threshold_no_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount",
+    "test_total_value_rounds_to_two_decimals",
+    "test_total_value_sums_all_items"
+   ]
+  },
+  "arith:183": {
+   "operator": "arith",
+   "line": 49,
+   "description": "Mult -> Div",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount"
+   ]
+  },
+  "const:186": {
+   "operator": "const",
+   "line": 50,
+   "description": "2 -> 3",
+   "killed_by": [
+    "test_total_value_rounds_to_two_decimals"
+   ]
+  },
+  "cmp:195": {
+   "operator": "cmp",
+   "line": 57,
+   "description": "Eq -> NotEq",
+   "killed_by": [
+    "test_by_category_is_case_insensitive_and_sorted",
+    "test_by_category_unknown_is_empty",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "cmp:205": {
+   "operator": "cmp",
+   "line": 65,
+   "description": "LtE -> Lt",
+   "killed_by": [
+    "test_low_stock_default_limit_is_inclusive",
+    "test_low_stock_orders_by_quantity",
+    "test_random_operation_sequences_match_reference"
+   ]
+  },
+  "arith:286": {
+   "operator": "arith",
+   "line": 49,
+   "description": "Sub -> Add",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount"
+   ]
+  },
+  "const:358": {
+   "operator": "const",
+   "line": 49,
+   "description": "1 -> 2",
+   "killed_by": [
+    "test_random_operation_sequences_match_reference",
+    "test_total_value_above_threshold_gets_discount",
+    "test_total_value_custom_threshold_and_rate",
+    "test_total_value_exactly_at_threshold_gets_discount"
+   ]
+  }
+ }
+}

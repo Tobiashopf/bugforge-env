@@ -15,12 +15,22 @@ from pathlib import Path
 
 from .agents import OracleAgent, RandomAgent, exploits, run_episode
 from .env import BugForgeEnv
-from .generator import DIFFICULTIES, generate
+from .generator import (
+    API_DIFFICULTY,
+    DIFFICULTIES,
+    LEDGER_DIFFICULTY,
+    NUMERICAL_DIFFICULTY,
+    RECONCILIATION_DIFFICULTY,
+    REPOSITORY_DIFFICULTIES,
+    REPOSITORY_DIFFICULTY,
+    SCHEDULER_DIFFICULTY,
+    generate,
+)
 
 
 def cmd_show(args) -> None:
     task = generate(args.seed, args.difficulty)
-    print(f"seed {task.seed}  difficulty {task.difficulty}  modules {', '.join(task.bases)}\n")
+    print(f"seed {task.seed}  difficulty {task.difficulty}  modules {', '.join(task.module_files)}\n")
     print("injected bugs (hidden from the agent):")
     for b in task.bugs:
         print(f"  {b.file}:{b.line:<4} {b.operator:<8} {b.description}")
@@ -65,11 +75,17 @@ def cmd_calibrate(args) -> None:
     from . import experiments
     from .agents.llm import Budget, make_client
     client = make_client(args.provider, args.model, args.request_timeout)
-    grid = ([DIFFICULTIES[n] for n in DIFFICULTIES] if args.named else experiments.GRID)
+    grid = ([REPOSITORY_DIFFICULTY] if args.repository_checkout else
+            [LEDGER_DIFFICULTY] if args.repository_ledger else
+            [NUMERICAL_DIFFICULTY] if args.repository_numerical else
+            [API_DIFFICULTY] if args.repository_api else
+            [SCHEDULER_DIFFICULTY] if args.repository_scheduler else
+            [RECONCILIATION_DIFFICULTY] if args.repository_reconciliation else
+            [DIFFICULTIES[n] for n in DIFFICULTIES] if args.named else experiments.GRID)
     out = Path(args.out) if args.out else _default_out(client.provider, client.model)
     records = experiments.run_grid(client, out, grid, list(range(args.seeds)),
                                    sandbox=args.sandbox, max_steps=args.max_steps,
-                                   budget=Budget(args.max_tokens))
+                                   budget=Budget(args.max_tokens), model_revision=args.model_revision)
     report_path = out.with_name(out.stem + "_report.md")
     report_path.write_text(experiments.report(records), encoding="utf-8")
     print(f"\nreport written to {report_path}")
@@ -81,7 +97,7 @@ def cmd_enrich(args) -> None:
     from . import experiments
     path = Path(args.file)
     records = experiments.load_records(path)
-    grid = experiments.GRID + list(DIFFICULTIES.values())
+    grid = experiments.GRID + list(DIFFICULTIES.values()) + list(REPOSITORY_DIFFICULTIES.values())
     n = experiments.enrich(records, grid)
     path.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
     print(f"added bug details to {n} of {len(records)} records")
@@ -91,7 +107,10 @@ def cmd_report(args) -> None:
     from . import experiments
     records = []
     for path in args.files:
-        records += experiments.load_records(Path(path))
+        for rec in experiments.load_records(Path(path)):
+            if "experiment_id" not in rec:
+                rec["_legacy_source"] = str(Path(path).resolve())
+            records.append(rec)
     text = experiments.report(records)
     if args.write:
         out = Path(args.files[0])
@@ -104,25 +123,37 @@ def main(argv=None) -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("show", help="print a generated task")
     s.add_argument("--seed", type=int, default=0)
-    s.add_argument("--difficulty", default="easy", choices=list(DIFFICULTIES))
+    s.add_argument("--difficulty", default="easy", choices=[*DIFFICULTIES, *REPOSITORY_DIFFICULTIES])
     s.add_argument("--files", action="store_true", help="also print the workspace files")
     s.set_defaults(fn=cmd_show)
     b = sub.add_parser("baselines", help="run reference and exploit agents")
     b.add_argument("--seeds", type=int, default=10)
-    b.add_argument("--difficulty", action="append", choices=list(DIFFICULTIES))
+    b.add_argument("--difficulty", action="append", choices=[*DIFFICULTIES, *REPOSITORY_DIFFICULTIES])
     b.set_defaults(fn=cmd_baselines)
     c = sub.add_parser("calibrate", help="run an LLM agent over the difficulty grid")
     c.add_argument("--provider", default="ollama", choices=["ollama", "anthropic"])
     c.add_argument("--model", default=None, help="default: qwen2.5-coder:3b / claude-haiku-5-5")
     c.add_argument("--seeds", type=int, default=8, help="seeds per configuration")
     c.add_argument("--sandbox", default=None, choices=["local", "docker"],
-                   help="where model-written code runs (default: $BUGFORGE_SANDBOX or local)")
+                   help="where model-written code runs (default: docker; local only for trusted development)")
     c.add_argument("--max-steps", type=int, default=30)
     c.add_argument("--request-timeout", type=float, default=None,
                    help="seconds per model call (default: 1800 for ollama, 120 for anthropic)")
     c.add_argument("--max-tokens", type=int, default=0,
                    help="stop the sweep after this many tokens in total (0 = no limit)")
-    c.add_argument("--named", action="store_true", help="use easy/medium/hard instead of the grid")
+    c.add_argument("--model-revision", help="optional operator-supplied model revision (not independently verified)")
+    modes = c.add_mutually_exclusive_group()
+    modes.add_argument("--named", action="store_true", help="use easy/medium/hard instead of the grid")
+    modes.add_argument("--repository-checkout", action="store_true", help="run the opt-in checkout family")
+    modes.add_argument("--repository-ledger", action="store_true", help="run the opt-in ledger family")
+    modes.add_argument("--repository-numerical", action="store_true",
+                       help="run the opt-in numerical pipeline family")
+    modes.add_argument("--repository-api", action="store_true",
+                       help="run the opt-in API compatibility family")
+    modes.add_argument("--repository-scheduler", action="store_true",
+                       help="run the opt-in job scheduler family")
+    modes.add_argument("--repository-reconciliation", action="store_true",
+                       help="run the opt-in reconciliation family")
     c.add_argument("--out", default=None, help="JSONL file (default: runs/<provider>_<model>.jsonl)")
     c.set_defaults(fn=cmd_calibrate)
     e = sub.add_parser("enrich", help="add bug details to runs recorded before they were logged")

@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "sandbox": "docker",
+  "max_steps": 30,
+  "families": ["repository-checkout", "repository-ledger", "repository-numerical", "repository-api", "repository-scheduler", "repository-reconciliation"],
+  "seeds": [0,1,2,3,4,5,6,7,8,9],
+  "models": [
+    {"id": "qwen-small", "provider": "ollama", "model": "qwen2.5-coder:1.5b", "revision": null},
+    {"id": "qwen-medium", "provider": "ollama", "model": "qwen2.5-coder:3b", "revision": null},
+    {"id": "qwen-large", "provider": "ollama", "model": "qwen2.5-coder:7b", "revision": null}
+  ]
+}

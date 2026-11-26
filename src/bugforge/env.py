@@ -75,7 +75,7 @@ class BugForgeEnv:
         self.close()
         self.task = task or generate(seed, self.difficulty)
         self.ws = Workspace(self.task.workspace, self.task.module_files,
-                            self.runner).__enter__()
+                            self.runner, project_modules=self.task.project_modules).__enter__()
         self.steps, self.test_runs, self.done = 0, 0, False
         self.tool_errors = 0
         self.edited: list[str] = []

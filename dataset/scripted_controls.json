@@ -1,0 +1,13 @@
+{
+  "kind": "scripted_control",
+  "sandbox": "local",
+  "checks": {
+    "catalog": true,
+    "read": true,
+    "edit": true,
+    "test": true,
+    "unknown": true,
+    "unedited_submit": true,
+    "privileged_reference": true
+  }
+}
